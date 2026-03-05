@@ -1,0 +1,263 @@
+:root{
+  --bg: #0b1210;            /* fondo oscuro elegante */
+  --card: rgba(255,255,255,.06);
+  --card2: rgba(255,255,255,.08);
+  --line: rgba(255,255,255,.12);
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.65);
+
+  --green: #2fbf71;         /* verde principal */
+  --green2: #1f8a52;        /* verde oscuro */
+  --danger: #ff5a5f;
+
+  --radius: 18px;
+  --shadow: 0 18px 50px rgba(0,0,0,.45);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  color: var(--text);
+  background:
+    radial-gradient(1000px 500px at 20% 0%, rgba(47,191,113,.25), transparent 55%),
+    radial-gradient(900px 450px at 85% 15%, rgba(31,138,82,.18), transparent 60%),
+    var(--bg);
+}
+
+a{color: var(--green); text-decoration:none}
+a:hover{opacity:.9}
+
+.wrap{
+  min-height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:28px 14px;
+}
+
+.card{
+  width:min(460px, 100%);
+  background: linear-gradient(180deg, var(--card2), var(--card));
+  border:1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px;
+  backdrop-filter: blur(10px);
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom: 14px;
+}
+.brand img{
+  width:44px; height:44px; object-fit:contain;
+  border-radius: 12px;
+  background: rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  padding:6px;
+}
+.brand .title{
+  line-height:1.1;
+}
+.brand .title h1{
+  margin:0;
+  font-size: 18px;
+  letter-spacing:.3px;
+}
+.brand .title p{
+  margin:4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+h2{
+  margin: 12px 0 6px;
+  font-size: 20px;
+}
+p{margin: 8px 0; color: var(--muted)}
+
+.field{margin-top:12px}
+label{display:block; font-size:13px; color: var(--muted); margin-bottom:6px}
+
+input, select, textarea{
+  width:100%;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border:1px solid var(--line);
+  background: rgba(0,0,0,.22);
+  color: var(--text);
+  outline:none;
+}
+input:focus, select:focus, textarea:focus{
+  border-color: rgba(47,191,113,.55);
+  box-shadow: 0 0 0 4px rgba(47,191,113,.12);
+}
+
+.btn{
+  width:100%;
+  margin-top:14px;
+  padding: 12px 14px;
+  border:0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--green), var(--green2));
+  color: #0b1210;
+  font-weight: 700;
+  cursor:pointer;
+}
+.btn:hover{filter:brightness(1.03)}
+.btn:active{transform: translateY(1px)}
+
+.alert{
+  margin-top:12px;
+  padding:10px 12px;
+  border-radius: 14px;
+  border:1px solid rgba(255,90,95,.35);
+  background: rgba(255,90,95,.10);
+  color: rgba(255,255,255,.9);
+  font-size: 13px;
+}
+
+.footer-links{
+  margin-top:14px;
+  display:flex;
+  justify-content:space-between;
+  font-size: 13px;
+  color: var(--muted);
+}
+.small{font-size:12px;color:var(--muted)}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ===== Layout interno ===== */
+
+.app{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px 24px;
+  background: rgba(0,0,0,.35);
+  border-bottom:1px solid var(--line);
+  backdrop-filter: blur(8px);
+}
+
+.logo{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:600;
+}
+
+.logo img{
+  width:36px;
+  height:36px;
+  object-fit:contain;
+}
+
+.user{
+  font-size:14px;
+  color:var(--muted);
+}
+
+.user a{
+  margin-left:14px;
+  color:var(--green);
+}
+
+.container{
+  padding:30px;
+  max-width:1100px;
+  width:100%;
+  margin:0 auto;
+}
+
+/* ===== Cards internas ===== */
+
+.panel{
+  background: linear-gradient(180deg, var(--card2), var(--card));
+  border:1px solid var(--line);
+  border-radius: var(--radius);
+  padding:20px;
+  box-shadow: var(--shadow);
+}
+
+/* ===== Botones secundarios ===== */
+
+.btn-secondary{
+  display:inline-block;
+  padding:8px 14px;
+  border-radius:12px;
+  background:rgba(47,191,113,.15);
+  border:1px solid rgba(47,191,113,.3);
+  color:var(--green);
+  font-size:14px;
+}
+
+/* ===== Tablas modernas ===== */
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:16px;
+  font-size:14px;
+}
+
+th{
+  text-align:left;
+  padding:12px;
+  background:rgba(255,255,255,.06);
+  color:var(--muted);
+  border-bottom:1px solid var(--line);
+}
+
+td{
+  padding:12px;
+  border-bottom:1px solid var(--line);
+}
+
+tr:hover{
+  background:rgba(255,255,255,.04);
+}
+
+/* ===== Fix dropdown options (Windows/Chrome) ===== */
+select{
+  background-color: rgba(255,255,255,.06); /* tu estilo */
+  color: #e5e7eb;
+}
+
+/* La lista desplegable */
+select option{
+  background-color: #0b1220;  /* oscuro real */
+  color: #e5e7eb;             /* texto claro */
+}
+
+/* Para opciones seleccionadas (algunos navegadores) */
+select option:checked{
+  background-color: #111827;
+  color: #e5e7eb;
+}
+
+
+
+
+
+
