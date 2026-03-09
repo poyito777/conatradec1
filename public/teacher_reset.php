@@ -17,10 +17,16 @@ if ($u['role'] !== 'teacher') { http_response_code(403); exit("Solo docentes.");
 
 function gen_password(int $len=10): string {
   $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#';
-  $p=''; for($i=0;$i<$len;$i++) $p.=$alphabet[random_int(0, strlen($alphabet)-1)];
+  $p = '';
+  for($i=0; $i<$len; $i++) {
+    $p .= $alphabet[random_int(0, strlen($alphabet)-1)];
+  }
   return $p;
 }
-function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+
+function h($v){
+  return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+}
 
 $newPlain = gen_password(10);
 $newHash  = password_hash($newPlain, PASSWORD_DEFAULT);
@@ -36,47 +42,168 @@ $up->execute([$newHash, $id]);
   <title>Restablecer contraseña</title>
   <link rel="stylesheet" href="/docentes/assets/css/app.css">
   <style>
-    .app{min-height:100vh;display:flex;flex-direction:column}
-    .topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:rgba(0,0,0,.35);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
-    .logo{display:flex;align-items:center;gap:10px;font-weight:700}
-    .logo img{width:34px;height:34px;object-fit:contain}
-    .nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .nav a{padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.06)}
-    .container{padding:26px;max-width:760px;width:100%;margin:0 auto}
-    .panel{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
-    code{font-size:18px}
-    .box{margin-top:12px;padding:14px;border-radius:14px;border:1px solid rgba(47,191,113,.35);background:rgba(47,191,113,.10)}
+    .container{
+      padding:26px;
+      max-width:900px;
+      width:100%;
+      margin:0 auto;
+    }
+
+    .panel{
+      background:linear-gradient(180deg,var(--card2),var(--card));
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:20px;
+      box-shadow:var(--shadow);
+    }
+
+    .hero{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+
+    .muted{
+      color:var(--muted);
+    }
+
+    .box{
+      margin-top:16px;
+      padding:16px;
+      border-radius:16px;
+      border:1px solid rgba(47,191,113,.35);
+      background:rgba(47,191,113,.10);
+    }
+
+    .box p{
+      margin:0 0 10px;
+    }
+
+    .box p:last-child{
+      margin-bottom:0;
+    }
+
+    .pw{
+      display:inline-block;
+      margin-top:6px;
+      padding:10px 14px;
+      border-radius:12px;
+      background:rgba(255,255,255,.06);
+      border:1px solid var(--line);
+      font-size:20px;
+      font-weight:900;
+      letter-spacing:.5px;
+      color:#e5e7eb;
+      word-break:break-all;
+    }
+
+    .note{
+      margin-top:14px;
+      padding:12px 14px;
+      border-radius:12px;
+      background:rgba(255,255,255,.04);
+      border:1px solid var(--line);
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:18px;
+    }
+
+    .btnS{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid rgba(47,191,113,.35);
+      background:rgba(47,191,113,.10);
+      color:var(--green);
+      font-weight:800;
+      text-decoration:none;
+      cursor:pointer;
+    }
+
+    .btnG{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid rgba(148,163,184,.25);
+      background:rgba(255,255,255,.05);
+      color:#cbd5e1;
+      font-weight:800;
+      text-decoration:none;
+      cursor:pointer;
+    }
+
+    .status-ok{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 12px;
+      border-radius:999px;
+      border:1px solid rgba(47,191,113,.35);
+      background:rgba(47,191,113,.10);
+      color:var(--green);
+      font-weight:800;
+      font-size:13px;
+    }
   </style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div class="logo">
-        <img src="/docentes/assets/images/1.png" alt="CONATRADEC">
-        <span>CONATRADEC • Docentes</span>
+<?php require __DIR__ . '/partials/sidebar.php'; ?>
+
+<main class="container">
+  <section class="panel">
+    <div class="hero">
+      <div>
+        <h2 style="margin:0 0 6px;">Contraseña restablecida</h2>
+        <div class="status-ok">✅ Restablecimiento exitoso</div>
+        <p style="margin:12px 0 0;color:var(--muted);">
+          El docente estará obligado a cambiarla en su próximo inicio de sesión.
+        </p>
       </div>
-      <div class="nav">
-        <a href="teachers.php">Docentes</a>
-        <a href="dashboard.php">Dashboard</a>
-        <a href="logout.php">Salir</a>
-      </div>
-    </header>
+    </div>
 
-    <main class="container">
-      <section class="panel">
-        <h2 style="margin:0 0 6px;">Contraseña restablecida ✅</h2>
-        <p style="margin:0;color:var(--muted);">El docente estará obligado a cambiarla en su próximo inicio de sesión.</p>
+    <div class="box">
+      <p><b>Docente:</b> <?= h($u['name']) ?></p>
+      <p><b>Correo:</b> <?= h($u['email']) ?></p>
+      <p><b>Nueva contraseña temporal:</b></p>
+      <div class="pw"><?= h($newPlain) ?></div>
+    </div>
 
-        <div class="box">
-          <p style="margin:0 0 8px;"><b>Docente:</b> <?= h($u['name']) ?> (<?= h($u['email']) ?>)</p>
-          <p style="margin:0;"><b>Nueva contraseña temporal:</b> <code><?= h($newPlain) ?></code></p>
-        </div>
+    <div class="note">
+      Guardá esta contraseña temporal y compartila únicamente con el docente correspondiente.
+      En el próximo acceso, el sistema le pedirá cambiarla obligatoriamente.
+    </div>
 
-        <div style="margin-top:14px;">
-          <a href="teachers.php">← Volver</a>
-        </div>
-      </section>
-    </main>
-  </div>
+    <div class="actions">
+      <a class="btnS" href="teachers.php">← Volver a docentes</a>
+      <a class="btnG" href="dashboard.php">Ir al dashboard</a>
+    </div>
+  </section>
+</main>
+
+<script>
+function toggleSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  if (window.innerWidth <= 960) {
+    sidebar.classList.toggle('open');
+  } else {
+    sidebar.classList.toggle('collapsed');
+  }
+}
+</script>
+</div>
+</div>
 </body>
 </html>

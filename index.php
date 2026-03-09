@@ -2,6 +2,14 @@
 require __DIR__ . '/../app/config/db.php';
 require __DIR__ . '/../app/middleware/auth.php';
 
+$stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'");
+$adminCount = (int)$stmt->fetchColumn();
+
+if ($adminCount === 0) {
+    header("Location: install.php");
+    exit;
+}
+
 if (isLogged()) {
   // Si ya está logueado, respetar la regla de cambio obligatorio
   if ((int)($_SESSION['user']['must_change_password'] ?? 0) === 1) {

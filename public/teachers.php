@@ -5,8 +5,16 @@ require __DIR__ . '/../app/middleware/auth.php';
 requireRole('admin');
 requirePasswordChangeIfNeeded();
 
-$teachers = $pdo->query("SELECT id, name, email, is_active, created_at FROM users WHERE role='teacher' ORDER BY id DESC")->fetchAll();
-function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+$teachers = $pdo->query("
+  SELECT id, name, email, is_active, created_at
+  FROM users
+  WHERE role='teacher'
+  ORDER BY id DESC
+")->fetchAll();
+
+function h($v){
+  return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+}
 ?>
 <!doctype html>
 <html lang="es">
@@ -15,90 +23,251 @@ function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
   <title>Docentes</title>
   <link rel="stylesheet" href="/docentes/assets/css/app.css">
   <style>
-    .app{min-height:100vh;display:flex;flex-direction:column}
-    .topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:rgba(0,0,0,.35);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
-    .logo{display:flex;align-items:center;gap:10px;font-weight:700}
-    .logo img{width:34px;height:34px;object-fit:contain}
-    .nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .nav a{padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.06)}
-    .container{padding:26px;max-width:1100px;width:100%;margin:0 auto}
-    .panel{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
-    table{width:100%;border-collapse:collapse;margin-top:14px}
-    th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
-    th{color:var(--muted);font-weight:700}
-    tr:hover{background:rgba(255,255,255,.04)}
-    .pill{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px}
-    .on{border-color:rgba(47,191,113,.35);color:var(--green)}
-    .off{border-color:rgba(255,90,95,.35);color:rgba(255,255,255,.85)}
-    .btnS{display:inline-block;padding:8px 12px;border-radius:12px;border:1px solid rgba(47,191,113,.35);background:rgba(47,191,113,.10);color:var(--green);font-weight:700}
-    .btnD{display:inline-block;padding:8px 12px;border-radius:12px;border:1px solid rgba(255,90,95,.35);background:rgba(255,90,95,.10);color:rgba(255,255,255,.9);font-weight:700}
+    .container{
+      padding:26px;
+      max-width:1200px;
+      width:100%;
+      margin:0 auto;
+    }
+
+    .panel{
+      background:linear-gradient(180deg,var(--card2),var(--card));
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:18px;
+      box-shadow:var(--shadow);
+    }
+
+    .hero{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:8px;
+    }
+
+    .muted{
+      color:var(--muted);
+    }
+
+    .btnS{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid rgba(47,191,113,.35);
+      background:rgba(47,191,113,.10);
+      color:var(--green);
+      font-weight:800;
+      text-decoration:none;
+      cursor:pointer;
+    }
+
+    .btnD{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:9px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,90,95,.35);
+      background:rgba(255,90,95,.10);
+      color:rgba(255,255,255,.92);
+      font-weight:700;
+      text-decoration:none;
+      cursor:pointer;
+    }
+
+    .summary{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+      margin:16px 0 8px;
+    }
+
+    .card{
+      background:rgba(255,255,255,.05);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:14px;
+    }
+
+    .card .k{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .card .v{
+      font-size:28px;
+      font-weight:900;
+      margin-top:6px;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:16px;
+    }
+
+    th, td{
+      padding:12px;
+      border-bottom:1px solid var(--line);
+      text-align:left;
+      font-size:14px;
+      vertical-align:middle;
+    }
+
+    th{
+      color:var(--muted);
+      font-weight:700;
+      background:rgba(255,255,255,.04);
+    }
+
+    tr:hover{
+      background:rgba(255,255,255,.04);
+    }
+
+    .pill{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      font-size:12px;
+    }
+
+    .on{
+      border-color:rgba(47,191,113,.35);
+      color:var(--green);
+    }
+
+    .off{
+      border-color:rgba(255,90,95,.35);
+      color:rgba(255,255,255,.88);
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    @media(max-width:860px){
+      .summary{
+        grid-template-columns:1fr;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div class="logo">
-        <img src="/docentes/assets/images/1.png" alt="CONATRADEC">
-        <span>CONATRADEC • Docentes</span>
-      </div>
-      <div class="nav">
-        <a href="dashboard.php">Dashboard</a>
-        <a href="students.php">Estudiantes</a>
-        <a href="teachers.php">Docentes</a>
-        <a href="logout.php">Salir</a>
-      </div>
-    </header>
+<?php require __DIR__ . '/partials/sidebar.php'; ?>
 
-    <main class="container">
-      <section class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-          <div>
-            <h2 style="margin:0 0 6px;">Gestión de docentes</h2>
-            <p style="margin:0;color:var(--muted);">Crear, listar y restablecer contraseñas.</p>
-          </div>
-          <a class="btnS" href="teacher_new.php">+ Crear docente</a>
-        </div>
+<main class="container">
+  <section class="panel">
+    <div class="hero">
+      <div>
+        <h2 style="margin:0 0 6px;">Gestión de docentes</h2>
+        <p style="margin:0;color:var(--muted);">
+          Crear, listar y restablecer contraseñas.
+        </p>
+      </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Nombre</th>
-              <th>Email</th>
-              <th>Activo</th>
-              <th>Creado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php foreach($teachers as $t): ?>
-              <tr>
-                <td><?= (int)$t['id'] ?></td>
-                <td><?= h($t['name']) ?></td>
-                <td><?= h($t['email']) ?></td>
-                <td>
-                  <?php if ((int)$t['is_active'] === 1): ?>
-                    <span class="pill on">Sí</span>
-                  <?php else: ?>
-                    <span class="pill off">No</span>
-                  <?php endif; ?>
-                </td>
-                <td><?= h($t['created_at']) ?></td>
-                <td style="display:flex;gap:10px;flex-wrap:wrap">
-                  <a class="btnS" href="teacher_reset.php?id=<?= (int)$t['id'] ?>"
-                     onclick="return confirm('¿Restablecer contraseña de este docente?');">
-                    Restablecer contraseña
-                  </a>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-            <?php if(!$teachers): ?>
-              <tr><td colspan="6" style="color:var(--muted);">No hay docentes todavía.</td></tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
-      </section>
-    </main>
-  </div>
+      <a class="btnS" href="teacher_new.php">+ Crear docente</a>
+    </div>
+
+    <?php
+      $totalTeachers = count($teachers);
+      $activeTeachers = 0;
+      $inactiveTeachers = 0;
+
+      foreach ($teachers as $t) {
+        if ((int)$t['is_active'] === 1) {
+          $activeTeachers++;
+        } else {
+          $inactiveTeachers++;
+        }
+      }
+    ?>
+
+    <div class="summary">
+      <div class="card">
+        <div class="k">Total docentes</div>
+        <div class="v"><?= (int)$totalTeachers ?></div>
+      </div>
+
+      <div class="card">
+        <div class="k">Activos</div>
+        <div class="v"><?= (int)$activeTeachers ?></div>
+      </div>
+
+      <div class="card">
+        <div class="k">Inactivos</div>
+        <div class="v"><?= (int)$inactiveTeachers ?></div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:80px;">ID</th>
+          <th>Docente</th>
+          <th>Email</th>
+          <th style="width:120px;">Activo</th>
+          <th style="width:190px;">Creado</th>
+          <th style="width:260px;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach($teachers as $t): ?>
+          <tr>
+            <td><?= (int)$t['id'] ?></td>
+            <td>
+              <div style="font-weight:800;color:#e5e7eb;">
+                <?= h($t['name']) ?>
+              </div>
+            </td>
+            <td><?= h($t['email']) ?></td>
+            <td>
+              <?php if ((int)$t['is_active'] === 1): ?>
+                <span class="pill on">Sí</span>
+              <?php else: ?>
+                <span class="pill off">No</span>
+              <?php endif; ?>
+            </td>
+            <td><?= h($t['created_at']) ?></td>
+            <td>
+              <div class="actions">
+                <a class="btnD"
+                   href="teacher_reset.php?id=<?= (int)$t['id'] ?>"
+                   onclick="return confirm('¿Restablecer contraseña de este docente?');">
+                  Restablecer contraseña
+                </a>
+              </div>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+
+        <?php if(!$teachers): ?>
+          <tr>
+            <td colspan="6" style="color:var(--muted);">No hay docentes todavía.</td>
+          </tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+function toggleSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  if (window.innerWidth <= 960) {
+    sidebar.classList.toggle('open');
+  } else {
+    sidebar.classList.toggle('collapsed');
+  }
+}
+</script>
+</div>
+</div>
 </body>
 </html>
