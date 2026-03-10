@@ -257,18 +257,8 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
   </style>
 </head>
 <body>
-<div class="app">
-  <header class="topbar">
-    <div class="logo">
-      <img src="/docentes/assets/images/1.png" alt="CONATRADEC">
-      <span>CONATRADEC • Asignar estudiantes</span>
-    </div>
+<?php require __DIR__ . '/partials/sidebar.php'; ?>
 
-    <div class="nav">
-      <a href="dashboard.php">Dashboard</a>
-      <a href="groups.php">Grupos</a>
-      <a href="logout.php">Salir</a>
-    </div>
   </header>
 
   <main class="container">

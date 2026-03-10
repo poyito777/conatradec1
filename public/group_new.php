@@ -110,17 +110,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </style>
 </head>
 <body>
-<div class="app">
-  <header class="topbar">
-    <div class="logo">
-      <img src="/docentes/assets/images/1.png" alt="CONATRADEC">
-      <span>CONATRADEC • Crear grupo</span>
-    </div>
-    <div class="nav">
-      <a href="dashboard.php">Dashboard</a>
-      <a href="groups.php">Grupos</a>
-      <a href="logout.php">Salir</a>
-    </div>
+<?php require __DIR__ . '/partials/sidebar.php'; ?>
+
   </header>
 
   <main class="container">
@@ -211,6 +202,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </form>
     </section>
   </main>
+  <script>
+function toggleSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  if (window.innerWidth <= 960) {
+    sidebar.classList.toggle('open');
+  } else {
+    sidebar.classList.toggle('collapsed');
+  }
+}
 </div>
 </body>
 </html>

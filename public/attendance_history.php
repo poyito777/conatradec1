@@ -189,19 +189,11 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
   </style>
 </head>
 <body>
-<div class="app">
-  <header class="topbar">
-    <div class="logo">
-      <img src="/docentes/assets/images/1.png" alt="CONATRADEC">
-      <span>CONATRADEC • Historial de Asistencias</span>
-    </div>
+  <?php require __DIR__ . '/partials/sidebar.php'; ?>
 
-    <div class="nav">
-      <a href="dashboard.php">Dashboard</a>
-      <a href="groups.php">Grupos</a>
-      <a href="attendance_history.php">Asistencias</a>
-      <a href="logout.php">Salir</a>
-    </div>
+
+
+   
   </header>
 
   <main class="container">
@@ -294,6 +286,15 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
       </table>
     </section>
   </main>
+  <script>
+function toggleSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  if (window.innerWidth <= 960) {
+    sidebar.classList.toggle('open');
+  } else {
+    sidebar.classList.toggle('collapsed');
+  }
+}
 </div>
 </body>
 </html>

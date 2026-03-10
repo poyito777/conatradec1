@@ -8,7 +8,6 @@ requirePasswordChangeIfNeeded();
 $me = $_SESSION['user'];
 
 $q = trim($_GET['q'] ?? '');
-$status = trim($_GET['status'] ?? '');
 $teacherId = (int)($_GET['teacher_id'] ?? 0);
 $courseType = trim($_GET['course_type'] ?? '');
 $courseLevel = trim($_GET['course_level'] ?? '');
@@ -28,21 +27,17 @@ if (($me['role'] ?? '') === 'teacher') {
   }
 }
 
-// Filtro por estado
-if ($status !== '') {
-  $where[] = "s.status = :status";
-  $params[':status'] = $status;
-}
-
 // Filtro por tipo / nivel / departamento
 if ($courseType !== '') {
   $where[] = "s.course_type = :ctype";
   $params[':ctype'] = $courseType;
 }
+
 if ($courseLevel !== '') {
   $where[] = "s.course_level = :clevel";
   $params[':clevel'] = $courseLevel;
 }
+
 if ($department !== '') {
   $where[] = "s.department LIKE :dept";
   $params[':dept'] = "%{$department}%";
@@ -50,7 +45,7 @@ if ($department !== '') {
 
 // Búsqueda general
 if ($q !== '') {
-  $where[] = "(s.full_name LIKE :q OR s.student_code LIKE :q OR s.school LIKE :q OR s.cedula LIKE :q OR s.phone LIKE :q OR s.department LIKE :q)";
+  $where[] = "(s.full_name LIKE :q OR s.student_code LIKE :q OR s.school LIKE :q OR s.cedula LIKE :q OR s.phone LIKE :q OR s.department LIKE :q OR s.organization LIKE :q OR s.characterization LIKE :q)";
   $params[':q'] = "%{$q}%";
 }
 
@@ -79,12 +74,8 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $rows = $stmt->fetchAll();
 
-function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
-
-function pillClass($status){
-  if ($status === 'aprobado') return 'aprobado';
-  if ($status === 'desaprobado') return 'desaprobado';
-  return 'pendiente';
+function h($v){
+  return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 }
 
 function courseLabel($t){
@@ -106,7 +97,7 @@ function levelLabel($l){
   <style>
     .container{
       padding:26px;
-      max-width:1320px;
+      max-width:1380px;
       width:100%;
       margin:0 auto;
     }
@@ -203,29 +194,6 @@ function levelLabel($l){
       background:rgba(255,255,255,.04);
     }
 
-    .pill{
-      display:inline-block;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      font-size:12px;
-    }
-
-    .pill.aprobado{
-      border-color:rgba(47,191,113,.45);
-      color:var(--green);
-    }
-
-    .pill.desaprobado{
-      border-color:rgba(255,90,95,.45);
-      color:rgba(255,255,255,.92);
-    }
-
-    .pill.pendiente{
-      border-color:rgba(245,158,11,.45);
-      color:rgba(255,255,255,.92);
-    }
-
     .actions{
       display:flex;
       gap:8px;
@@ -272,6 +240,16 @@ function levelLabel($l){
       font-size:13px;
       font-weight:700;
     }
+
+    .tag{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      font-size:12px;
+      color:#e5e7eb;
+      background:rgba(255,255,255,.04);
+    }
   </style>
 </head>
 <body>
@@ -305,17 +283,7 @@ function levelLabel($l){
     <form method="get" class="filters">
       <div class="field">
         <label>Buscar</label>
-        <input name="q" value="<?= h($q) ?>" placeholder="Nombre, cédula, teléfono, escuela...">
-      </div>
-
-      <div class="field" style="min-width:170px">
-        <label>Estado</label>
-        <select name="status">
-          <option value="">Todos</option>
-          <option value="pendiente" <?= $status==='pendiente'?'selected':'' ?>>Pendiente</option>
-          <option value="aprobado" <?= $status==='aprobado'?'selected':'' ?>>Aprobado</option>
-          <option value="desaprobado" <?= $status==='desaprobado'?'selected':'' ?>>Desaprobado</option>
-        </select>
+        <input name="q" value="<?= h($q) ?>" placeholder="Nombre, código, escuela, teléfono, organización...">
       </div>
 
       <div class="field" style="min-width:170px">
@@ -368,15 +336,16 @@ function levelLabel($l){
     <table>
       <thead>
         <tr>
-          <th style="width:70px;">ID</th>
-          <th>Nombre</th>
+          <th style="width:80px;">ID</th>
+          <th style="width:150px;">Código</th>
+          <th>Nombre / Escuela</th>
           <th class="nowrap">Curso / Nivel</th>
           <th>Depto</th>
+          <th>Organización</th>
+          <th>Caracterización</th>
           <th class="nowrap">Inscripción</th>
           <th class="nowrap">Teléfono</th>
           <th class="nowrap">Cédula</th>
-          <th class="nowrap">Nota</th>
-          <th>Estado</th>
           <?php if ($me['role']==='admin'): ?><th>Docente</th><?php endif; ?>
           <th style="width:240px;">Acciones</th>
         </tr>
@@ -386,11 +355,13 @@ function levelLabel($l){
           <tr>
             <td><?= (int)$r['id'] ?></td>
 
+            <td class="nowrap">
+              <span class="tag"><?= h($r['student_code'] ?: '—') ?></span>
+            </td>
+
             <td>
               <div style="font-weight:800; color:#e5e7eb;"><?= h($r['full_name']) ?></div>
-              <div class="small">
-                <?= h($r['school']) ?><?= $r['student_code'] ? " • " . h($r['student_code']) : "" ?>
-              </div>
+              <div class="small"><?= h($r['school'] ?: '—') ?></div>
               <?php if (!empty($r['observations'])): ?>
                 <div class="small">Obs: <?= h($r['observations']) ?></div>
               <?php endif; ?>
@@ -401,20 +372,12 @@ function levelLabel($l){
               <div class="small"><?= h(levelLabel($r['course_level'])) ?></div>
             </td>
 
-            <td class="muted"><?= h($r['department']) ?></td>
-            <td class="muted nowrap"><?= h($r['enrolled_at']) ?></td>
-            <td class="muted nowrap"><?= h($r['phone']) ?></td>
-            <td class="muted nowrap"><?= h($r['cedula']) ?></td>
-
-            <td class="muted nowrap">
-              <?= ($r['final_grade'] === null ? '-' : h($r['final_grade'])) ?>
-            </td>
-
-            <td>
-              <span class="pill <?= h(pillClass($r['status'])) ?>">
-                <?= h($r['status']) ?>
-              </span>
-            </td>
+            <td class="muted"><?= h($r['department'] ?: '—') ?></td>
+            <td class="muted"><?= h($r['organization'] ?: '—') ?></td>
+            <td class="muted"><?= h($r['characterization'] ?: '—') ?></td>
+            <td class="muted nowrap"><?= h($r['enrolled_at'] ?: '—') ?></td>
+            <td class="muted nowrap"><?= h($r['phone'] ?: '—') ?></td>
+            <td class="muted nowrap"><?= h($r['cedula'] ?: '—') ?></td>
 
             <?php if ($me['role']==='admin'): ?>
               <td class="muted"><?= h($r['teacher_name']) ?></td>
@@ -432,7 +395,7 @@ function levelLabel($l){
 
         <?php if(!$rows): ?>
           <tr>
-            <td colspan="<?= $me['role']==='admin' ? 11 : 10 ?>" class="muted">
+            <td colspan="<?= $me['role']==='admin' ? 12 : 11 ?>" class="muted">
               No hay estudiantes para mostrar.
             </td>
           </tr>

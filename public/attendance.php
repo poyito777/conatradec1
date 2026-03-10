@@ -202,17 +202,7 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
   </style>
 </head>
 <body>
-<div class="app">
-  <header class="topbar no-print">
-    <div class="logo">
-      <img src="/docentes/assets/images/1.png" alt="CONATRADEC">
-      <span>CONATRADEC • Asistencia</span>
-    </div>
-
-    <div class="nav">
-      <a href="groups.php">Grupos</a>
-      <a href="logout.php">Salir</a>
-    </div>
+<?php require __DIR__ . '/partials/sidebar.php'; ?>
   </header>
 
   <main class="container">
@@ -306,6 +296,15 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
       </form>
     </section>
   </main>
+  <script>
+function toggleSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  if (window.innerWidth <= 960) {
+    sidebar.classList.toggle('open');
+  } else {
+    sidebar.classList.toggle('collapsed');
+  }
+}
 </div>
 </body>
 </html>

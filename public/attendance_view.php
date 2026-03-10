@@ -396,17 +396,8 @@ $totalStudents = count($items);
   </style>
 </head>
 <body>
-<div class="app">
-  <header class="topbar">
-    <div class="logo">
-      <img src="/docentes/assets/images/1.png" alt="CONATRADEC">
-      <span>CONATRADEC • Detalle de asistencia</span>
-    </div>
+<?php require __DIR__ . '/partials/sidebar.php'; ?>
 
-    <div class="nav">
-      <a href="attendance_history.php">Historial</a>
-      <a href="logout.php">Salir</a>
-    </div>
   </header>
 
   <main class="container">
@@ -502,6 +493,16 @@ $totalStudents = count($items);
 
     </section>
   </main>
+  <script>
+function toggleSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  if (window.innerWidth <= 960) {
+    sidebar.classList.toggle('open');
+  } else {
+    sidebar.classList.toggle('collapsed');
+  }
+}
+</script>
 </div>
 </body>
 </html>

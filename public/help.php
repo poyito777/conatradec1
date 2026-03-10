@@ -50,18 +50,7 @@ function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
   </style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div class="logo">
-        <img src="/docentes/assets/img/logo-conatradec.png" alt="CONATRADEC">
-        <span>CONATRADEC • Docentes</span>
-      </div>
-      <div class="nav">
-        <a href="dashboard.php">Dashboard</a>
-        <a href="students.php">Estudiantes</a>
-        <?php if (($me['role'] ?? '') === 'admin'): ?><a href="teachers.php">Docentes</a><?php endif; ?>
-        <a href="logout.php">Salir</a>
-      </div>
+  <?php require __DIR__ . '/partials/sidebar.php'; ?>
     </header>
 
     <main class="container">
@@ -136,6 +125,16 @@ function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
         </div>
       </section>
     </main>
+    <script>
+function toggleSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  if (window.innerWidth <= 960) {
+    sidebar.classList.toggle('open');
+  } else {
+    sidebar.classList.toggle('collapsed');
+  }
+}
+</script>
   </div>
 </body>
 </html>
