@@ -7,60 +7,80 @@ requirePasswordChangeIfNeeded();
 
 $me = $_SESSION['user'];
 
-/**
- * CSV para Excel (ES): separador ; y BOM UTF-8
- * Admin: exporta todos
- * Teacher: exporta solo los suyos
- */
-
 $delim = ';';
 
-// Filtros opcionales (si vos ya los pasás desde students.php, los respetamos)
 $q      = trim((string)($_GET['q'] ?? ''));
-$status = trim((string)($_GET['status'] ?? ''));
 $course = trim((string)($_GET['course_type'] ?? ''));
 $level  = trim((string)($_GET['course_level'] ?? ''));
 $dept   = trim((string)($_GET['department'] ?? ''));
+$teacherId = (int)($_GET['teacher_id'] ?? 0);
 
 $where = [];
 $params = [];
 
-// Permisos
 if (($me['role'] ?? '') === 'teacher') {
   $where[] = "s.teacher_id = ?";
   $params[] = (int)$me['id'];
+} else {
+  if ($teacherId > 0) {
+    $where[] = "s.teacher_id = ?";
+    $params[] = $teacherId;
+  }
 }
 
-// Búsqueda
 if ($q !== '') {
-  $where[] = "(s.full_name LIKE ? OR s.student_code LIKE ? OR s.cedula LIKE ? OR s.phone LIKE ?)";
+  $where[] = "(s.full_name LIKE ? OR s.student_code LIKE ? OR s.cedula LIKE ? OR s.phone LIKE ? OR s.school LIKE ? OR s.organization_name LIKE ? OR s.characterization LIKE ?)";
   $like = "%{$q}%";
-  array_push($params, $like, $like, $like, $like);
+  array_push($params, $like, $like, $like, $like, $like, $like, $like);
 }
 
-if ($status !== '') { $where[] = "s.status = ?";       $params[] = $status; }
-if ($course !== '') { $where[] = "s.course_type = ?";  $params[] = $course; }
-if ($level  !== '') { $where[] = "s.course_level = ?"; $params[] = $level; }
-if ($dept   !== '') { $where[] = "s.department = ?";   $params[] = $dept; }
+if ($course !== '') {
+  $where[] = "s.course_type = ?";
+  $params[] = $course;
+}
+
+if ($level !== '') {
+  $where[] = "s.course_level = ?";
+  $params[] = $level;
+}
+
+if ($dept !== '') {
+  $where[] = "s.department LIKE ?";
+  $params[] = "%{$dept}%";
+}
 
 $sqlWhere = $where ? ("WHERE " . implode(" AND ", $where)) : "";
 
 $sql = "
   SELECT
     s.id,
-    s.full_name,
     s.student_code,
+    s.full_name,
+    s.sex,
+    s.education_level,
+    s.profession,
+    s.nationality,
     s.school,
     s.course_type,
     s.course_level,
-    s.department,
     s.phone,
     s.cedula,
+    s.department,
+    s.municipality,
+    s.community,
+    s.organization_type,
+    s.organization_name,
+    s.organization_phone,
+    s.organization_location,
+    s.characterization,
+    s.trademark_registration,
+    s.course_purpose,
+    s.number_of_members,
+    s.future_projection,
     s.enrolled_at,
+    s.observations,
     s.final_grade,
     s.status,
-    s.observations,
-    s.notes,
     u.name  AS teacher_name,
     u.email AS teacher_email,
     s.created_at,
@@ -74,59 +94,80 @@ $sql = "
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 
-// Nombre del archivo
 $filename = "estudiantes_" . date("Y-m-d_H-i") . ".csv";
 
-// Headers de descarga
 header('Content-Type: text/csv; charset=UTF-8');
 header('Content-Disposition: attachment; filename="'.$filename.'"');
 
-// BOM UTF-8 para que Excel respete tildes/ñ
 echo "\xEF\xBB\xBF";
 
 $out = fopen('php://output', 'w');
 
-// Encabezados
 fputcsv($out, [
   'ID',
-  'Nombre',
   'Codigo',
+  'Nombre',
+  'Sexo',
+  'Nivel_escolar',
+  'Profesion',
+  'Nacionalidad',
   'Escuela',
   'Curso',
   'Nivel',
-  'Departamento',
   'Telefono',
   'Cedula',
+  'Departamento',
+  'Municipio',
+  'Comunidad',
+  'Tipo_organizacion',
+  'Nombre_organizacion',
+  'Telefono_organizacion',
+  'Ubicacion_organizacion',
+  'Caracterizacion',
+  'Registro_marca',
+  'Proposito_curso',
+  'Numero_socios',
+  'Proyeccion_futuro',
   'Fecha_inscripcion',
+  'Observaciones',
   'Nota_final',
   'Estado',
-  'Observaciones',
-  'Notas',
   'Docente',
   'Docente_email',
   'Creado',
   'Actualizado'
 ], $delim);
 
-// Filas
 while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
-
-  // Normalizar valores para CSV
   $row = [
     $r['id'],
-    $r['full_name'],
     $r['student_code'],
+    $r['full_name'],
+    $r['sex'],
+    $r['education_level'],
+    $r['profession'],
+    $r['nationality'],
     $r['school'],
     $r['course_type'],
     $r['course_level'],
-    $r['department'],
     $r['phone'],
     $r['cedula'],
+    $r['department'],
+    $r['municipality'],
+    $r['community'],
+    $r['organization_type'],
+    $r['organization_name'],
+    $r['organization_phone'],
+    $r['organization_location'],
+    $r['characterization'],
+    $r['trademark_registration'],
+    $r['course_purpose'],
+    $r['number_of_members'],
+    $r['future_projection'],
     $r['enrolled_at'],
+    $r['observations'],
     $r['final_grade'],
     $r['status'],
-    $r['observations'],
-    $r['notes'],
     $r['teacher_name'],
     $r['teacher_email'],
     $r['created_at'],

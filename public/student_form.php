@@ -22,11 +22,36 @@ $schools = [
   'Cro. Gabriel Martínez Herrera San Juan de Río Coco-Madriz'
 ];
 
-// Default row (nuevo)
+// Departamentos y municipios
+$municipios = [
+  'Boaco' => ['Boaco','Camoapa','San José de los Remates','San Lorenzo','Santa Lucía','Teustepe'],
+  'Carazo' => ['Diriamba','Dolores','El Rosario','Jinotepe','La Conquista','La Paz de Carazo','San Marcos','Santa Teresa'],
+  'Chinandega' => ['Chichigalpa','Chinandega','Cinco Pinos','Corinto','El Realejo','El Viejo','Posoltega','Puerto Morazán','San Francisco del Norte','San Pedro del Norte','Santo Tomás del Norte','Somotillo','Villanueva'],
+  'Chontales' => ['Acoyapa','Comalapa','Cuapa','El Coral','Juigalpa','La Libertad','San Francisco de Cuapa','San Pedro de Lóvago','Santo Domingo','Santo Tomás','Villa Sandino'],
+  'Estelí' => ['Condega','Estelí','La Trinidad','Pueblo Nuevo','San Juan de Limay','San Nicolás'],
+  'Granada' => ['Diriá','Diriomo','Granada','Nandaime'],
+  'Jinotega' => ['El Cuá','Jinotega','La Concordia','San José de Bocay','San Rafael del Norte','San Sebastián de Yalí','Santa María de Pantasma','Wiwilí de Jinotega'],
+  'León' => ['Achuapa','El Jicaral','La Paz Centro','Larreynaga','León','Nagarote','Quezalguaque','Santa Rosa del Peñón','Telica'],
+  'Madriz' => ['Las Sabanas','Palacagüina','San José de Cusmapa','San Juan de Río Coco','San Lucas','Somoto','Telpaneca','Totogalpa','Yalagüina'],
+  'Managua' => ['Ciudad Sandino','El Crucero','Managua','San Francisco Libre','San Rafael del Sur','Tipitapa','Ticuantepe','Villa Carlos Fonseca'],
+  'Masaya' => ['Catarina','La Concepción','Masatepe','Masaya','Nandasmo','Nindirí','Niquinohomo','San Juan de Oriente','Tisma'],
+  'Matagalpa' => ['Ciudad Darío','El Tuma - La Dalia','Esquipulas','Matagalpa','Matiguás','Muy Muy','Rancho Grande','Río Blanco','San Dionisio','San Isidro','San Ramón','Sébaco','Terrabona'],
+  'Nueva Segovia' => ['Ciudad Antigua','Dipilto','El Jícaro','Jalapa','Macuelizo','Mozonte','Murra','Ocotal','Quilalí','San Fernando','Santa María','Wiwilí de Nueva Segovia'],
+  'Río San Juan' => ['El Almendro','El Castillo','Morrito','San Carlos','San Juan de Nicaragua'],
+  'Rivas' => ['Altagracia','Belén','Buenos Aires','Cárdenas','Moyogalpa','Potosí','Rivas','San Jorge','San Juan del Sur','Tola'],
+  'RAAN' => ['Bonanza','Mulukukú','Prinzapolka','Puerto Cabezas','Rosita','Siuna','Waslala','Waspam'],
+  'RAAS' => ['Bluefields','Corn Island','Desembocadura de Río Grande','El Ayote','El Rama','Kukra Hill','La Cruz de Río Grande','Laguna de Perlas','Muelle de los Bueyes','Nueva Guinea','Paiwas']
+];
+
+// Defaults
 $row = [
   'id' => 0,
   'teacher_id' => $me['id'],
   'full_name' => '',
+  'sex' => '',
+  'education_level' => '',
+  'profession' => '',
+  'nationality' => '',
   'student_code' => '',
   'school' => '',
   'course_type' => 'barismo',
@@ -34,17 +59,27 @@ $row = [
   'phone' => '',
   'cedula' => '',
   'department' => '',
-  'organization' => '',
+  'municipality' => '',
+  'community' => '',
+  'organization_type' => '',
+  'organization_name' => '',
+  'organization_phone' => '',
+  'organization_location' => '',
+  'organization' => '', // legado
   'characterization' => '',
+  'trademark_registration' => '',
+  'course_purpose' => '',
+  'number_of_members' => '',
+  'future_projection' => '',
   'enrolled_at' => '',
   'observations' => ''
 ];
 
-// Si edición: cargar y validar permisos
+// Editar
 if ($id > 0) {
   $st = $pdo->prepare("SELECT * FROM students WHERE id=? LIMIT 1");
   $st->execute([$id]);
-  $found = $st->fetch();
+  $found = $st->fetch(PDO::FETCH_ASSOC);
 
   if (!$found) {
     http_response_code(404);
@@ -56,10 +91,10 @@ if ($id > 0) {
     exit("Acceso denegado");
   }
 
-  $row = $found;
+  $row = array_merge($row, $found);
 }
 
-// Dropdown docentes (solo admin)
+// Docentes para admin
 $teachers = [];
 if (($me['role'] ?? '') === 'admin') {
   $teachers = $pdo->query("
@@ -72,20 +107,36 @@ if (($me['role'] ?? '') === 'admin') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $full_name = trim($_POST['full_name'] ?? '');
-  $school = trim($_POST['school'] ?? '');
+  $sex = trim($_POST['sex'] ?? '');
+  $education_level = trim($_POST['education_level'] ?? '');
+  $profession = trim($_POST['profession'] ?? '');
+  $nationality = trim($_POST['nationality'] ?? '');
 
+  $school = trim($_POST['school'] ?? '');
   $course_type = trim($_POST['course_type'] ?? 'barismo');
   $course_level = trim($_POST['course_level'] ?? 'basico');
 
   $phone = trim($_POST['phone'] ?? '');
   $cedula = trim($_POST['cedula'] ?? '');
   $department = trim($_POST['department'] ?? '');
-  $organization = trim($_POST['organization'] ?? '');
+  $municipality = trim($_POST['municipality'] ?? '');
+  $community = trim($_POST['community'] ?? '');
+
+  $organization_type = trim($_POST['organization_type'] ?? '');
+  $organization_name = trim($_POST['organization_name'] ?? '');
+  $organization_phone = trim($_POST['organization_phone'] ?? '');
+  $organization_location = trim($_POST['organization_location'] ?? '');
   $characterization = trim($_POST['characterization'] ?? '');
+  $trademark_registration = trim($_POST['trademark_registration'] ?? '');
+  $course_purpose = trim($_POST['course_purpose'] ?? '');
+  $number_of_members_raw = trim($_POST['number_of_members'] ?? '');
+  $future_projection = trim($_POST['future_projection'] ?? '');
+
   $enrolled_at = trim($_POST['enrolled_at'] ?? '');
   $observations = trim($_POST['observations'] ?? '');
 
-  // teacher_id: admin elige, teacher fijo
+  $number_of_members = ($number_of_members_raw === '') ? null : (int)$number_of_members_raw;
+
   $teacher_id = (int)$row['teacher_id'];
   if (($me['role'] ?? '') === 'admin') {
     $teacher_id = (int)($_POST['teacher_id'] ?? $teacher_id);
@@ -93,14 +144,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $teacher_id = (int)$me['id'];
   }
 
-  // Validaciones
   $phoneDigits = preg_replace('/\D+/', '', $phone);
   $cedulaDigits = preg_replace('/\D+/', '', $cedula);
+  $orgPhoneDigits = preg_replace('/\D+/', '', $organization_phone);
 
+  // Validaciones
   if ($full_name === '') {
     $error = "El nombre es obligatorio.";
   } elseif (!in_array($school, $schools, true)) {
     $error = "Seleccioná una escuela válida.";
+  } elseif ($sex !== '' && !in_array($sex, ['masculino','femenino'], true)) {
+    $error = "Sexo inválido.";
+  } elseif ($education_level !== '' && !in_array($education_level, ['secundaria','tecnico','universitario'], true)) {
+    $error = "Nivel escolar inválido.";
+  } elseif ($nationality !== '' && !in_array($nationality, ['nicaraguense','extranjero'], true)) {
+    $error = "Nacionalidad inválida.";
   } elseif (!in_array($course_type, ['barismo','catacion'], true)) {
     $error = "Tipo de curso inválido.";
   } elseif (!in_array($course_level, ['basico','avanzado','intensivo'], true)) {
@@ -109,22 +167,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $error = "El teléfono debe tener exactamente 8 dígitos.";
   } elseif ($cedula !== '' && strlen($cedulaDigits) !== 14) {
     $error = "La cédula debe tener exactamente 14 dígitos.";
+  } elseif ($organization_phone !== '' && strlen($orgPhoneDigits) !== 8) {
+    $error = "El teléfono de la organización debe tener exactamente 8 dígitos.";
+  } elseif ($organization_type !== '' && !in_array($organization_type, ['institucion','privado','emprendimiento','estudiante','productor'], true)) {
+    $error = "Tipo de organización inválido.";
+  } elseif ($trademark_registration !== '' && !in_array($trademark_registration, ['si','no'], true)) {
+    $error = "Registro de marca inválido.";
+  } elseif ($number_of_members !== null && $number_of_members < 0) {
+    $error = "El número de socios no puede ser negativo.";
   } else {
 
     if ($id > 0) {
-      // UPDATE
       $up = $pdo->prepare("
         UPDATE students SET
           teacher_id=?,
           full_name=?,
+          sex=?,
+          education_level=?,
+          profession=?,
+          nationality=?,
           school=?,
           course_type=?,
           course_level=?,
           phone=?,
           cedula=?,
           department=?,
-          organization=?,
+          municipality=?,
+          community=?,
+          organization_type=?,
+          organization_name=?,
+          organization_phone=?,
+          organization_location=?,
           characterization=?,
+          trademark_registration=?,
+          course_purpose=?,
+          number_of_members=?,
+          future_projection=?,
           enrolled_at=?,
           observations=?
         WHERE id=?
@@ -133,14 +211,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $up->execute([
         $teacher_id,
         $full_name,
+        ($sex === '' ? null : $sex),
+        ($education_level === '' ? null : $education_level),
+        $profession,
+        ($nationality === '' ? null : $nationality),
         $school,
         $course_type,
         $course_level,
         ($phone === '' ? null : $phoneDigits),
         ($cedula === '' ? null : $cedulaDigits),
         $department,
-        $organization,
+        $municipality,
+        $community,
+        ($organization_type === '' ? null : $organization_type),
+        $organization_name,
+        ($organization_phone === '' ? null : $orgPhoneDigits),
+        $organization_location,
         $characterization,
+        ($trademark_registration === '' ? null : $trademark_registration),
+        $course_purpose,
+        $number_of_members,
+        $future_projection,
         ($enrolled_at === '' ? null : $enrolled_at),
         $observations,
         $id
@@ -150,29 +241,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       exit;
 
     } else {
-      // INSERT inicial sin student_code
       $ins = $pdo->prepare("
         INSERT INTO students
-        (teacher_id, full_name, school, course_type, course_level, phone, cedula, department, organization, characterization, enrolled_at, observations)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        (
+          teacher_id, full_name, sex, education_level, profession, nationality,
+          school, course_type, course_level,
+          phone, cedula, department, municipality, community,
+          organization_type, organization_name, organization_phone, organization_location,
+          characterization, trademark_registration, course_purpose, number_of_members, future_projection,
+          enrolled_at, observations
+        )
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ");
 
       $ins->execute([
         $teacher_id,
         $full_name,
+        ($sex === '' ? null : $sex),
+        ($education_level === '' ? null : $education_level),
+        $profession,
+        ($nationality === '' ? null : $nationality),
         $school,
         $course_type,
         $course_level,
         ($phone === '' ? null : $phoneDigits),
         ($cedula === '' ? null : $cedulaDigits),
         $department,
-        $organization,
+        $municipality,
+        $community,
+        ($organization_type === '' ? null : $organization_type),
+        $organization_name,
+        ($organization_phone === '' ? null : $orgPhoneDigits),
+        $organization_location,
         $characterization,
+        ($trademark_registration === '' ? null : $trademark_registration),
+        $course_purpose,
+        $number_of_members,
+        $future_projection,
         ($enrolled_at === '' ? null : $enrolled_at),
         $observations
       ]);
 
-      // Generar student_code automático tipo EST-2026-0001
       $newId = (int)$pdo->lastInsertId();
       $studentCode = 'EST-' . date('Y') . '-' . str_pad((string)$newId, 4, '0', STR_PAD_LEFT);
 
@@ -184,17 +293,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
-  // Rehidratar si hubo error
+  // Rehidratar
   $row['teacher_id'] = $teacher_id;
   $row['full_name'] = $full_name;
+  $row['sex'] = $sex;
+  $row['education_level'] = $education_level;
+  $row['profession'] = $profession;
+  $row['nationality'] = $nationality;
   $row['school'] = $school;
   $row['course_type'] = $course_type;
   $row['course_level'] = $course_level;
   $row['phone'] = $phone;
   $row['cedula'] = $cedula;
   $row['department'] = $department;
-  $row['organization'] = $organization;
+  $row['municipality'] = $municipality;
+  $row['community'] = $community;
+  $row['organization_type'] = $organization_type;
+  $row['organization_name'] = $organization_name;
+  $row['organization_phone'] = $organization_phone;
+  $row['organization_location'] = $organization_location;
   $row['characterization'] = $characterization;
+  $row['trademark_registration'] = $trademark_registration;
+  $row['course_purpose'] = $course_purpose;
+  $row['number_of_members'] = $number_of_members_raw;
+  $row['future_projection'] = $future_projection;
   $row['enrolled_at'] = $enrolled_at;
   $row['observations'] = $observations;
 }
@@ -206,114 +328,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <title><?= $id > 0 ? 'Editar' : 'Agregar' ?> estudiante</title>
   <link rel="stylesheet" href="/docentes/assets/css/app.css">
   <style>
-    .container{
-      padding:26px;
-      max-width:980px;
-      width:100%;
-      margin:0 auto;
-    }
-
-    .panel{
-      background:linear-gradient(180deg,var(--card2),var(--card));
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      padding:20px;
-      box-shadow:var(--shadow);
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns:repeat(12,1fr);
-      gap:12px;
-    }
-
+    .container{padding:26px;max-width:1080px;width:100%;margin:0 auto;}
+    .panel{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;}
+    .col4{grid-column:span 4}
     .col6{grid-column:span 6}
+    .col8{grid-column:span 8}
     .col12{grid-column:span 12}
-
-    @media(max-width:860px){
-      .col6{grid-column:span 12}
-    }
-
-    .actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:14px;
-    }
-
-    .btnS{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:10px 14px;
-      border-radius:14px;
-      border:1px solid rgba(47,191,113,.35);
-      background:rgba(47,191,113,.10);
-      color:var(--green);
-      font-weight:800;
-      text-decoration:none;
-      cursor:pointer;
-    }
-
-    .btnG{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:10px 14px;
-      border-radius:14px;
-      border:1px solid rgba(148,163,184,.25);
-      background:rgba(255,255,255,.05);
-      color:#cbd5e1;
-      font-weight:800;
-      text-decoration:none;
-      cursor:pointer;
-    }
-
-    textarea{
-      resize:vertical;
-    }
-
-    .hint{
-      font-size:12px;
-      color:var(--muted);
-      margin-top:6px;
-    }
-
-    .hero{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:14px;
-      flex-wrap:wrap;
-      margin-bottom:12px;
-    }
-
-    .muted{
-      color:var(--muted);
-    }
-
-    .info-box{
-      margin-top:12px;
-      padding:12px 14px;
-      border-radius:12px;
-      background:rgba(255,255,255,.04);
-      border:1px solid var(--line);
-      color:var(--muted);
-      line-height:1.6;
-      font-size:14px;
-    }
-
-    .readonly-box{
-      padding:12px 14px;
-      border-radius:12px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:#e5e7eb;
-      font-weight:700;
-      min-height:46px;
-      display:flex;
-      align-items:center;
-    }
+    @media(max-width:860px){.col4,.col6,.col8{grid-column:span 12}}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+    .btnS,.btnG{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:14px;font-weight:800;text-decoration:none;cursor:pointer;}
+    .btnS{border:1px solid rgba(47,191,113,.35);background:rgba(47,191,113,.10);color:var(--green);}
+    .btnG{border:1px solid rgba(148,163,184,.25);background:rgba(255,255,255,.05);color:#cbd5e1;}
+    textarea{resize:vertical}
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+    .hero{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px;}
+    .info-box{margin-top:12px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--muted);line-height:1.6;font-size:14px;}
+    .readonly-box{padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:#e5e7eb;font-weight:700;min-height:46px;display:flex;align-items:center;}
   </style>
 </head>
 <body>
@@ -324,9 +355,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="hero">
       <div>
         <h2 style="margin:0 0 6px;"><?= $id > 0 ? 'Editar' : 'Agregar' ?> estudiante</h2>
-        <p style="margin:0;color:var(--muted);">
-          El código del estudiante se genera automáticamente al crear el registro.
-        </p>
+        <p style="margin:0;color:var(--muted);">El código del estudiante se genera automáticamente al crear el registro.</p>
       </div>
     </div>
 
@@ -350,16 +379,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </div>
         <?php endif; ?>
 
-        <div class="field col12">
+        <div class="field col8">
           <label>Nombre completo *</label>
           <input name="full_name" value="<?= h($row['full_name']) ?>" required>
         </div>
 
-        <div class="field col6">
+        <div class="field col4">
           <label>Código del estudiante</label>
           <div class="readonly-box">
             <?= $id > 0 ? h($row['student_code'] ?: 'Sin código') : 'Se generará automáticamente al guardar' ?>
           </div>
+        </div>
+
+        <div class="field col4">
+          <label>Sexo</label>
+          <select name="sex">
+            <option value="">Seleccionar</option>
+            <option value="masculino" <?= ($row['sex'] ?? '') === 'masculino' ? 'selected' : '' ?>>Masculino</option>
+            <option value="femenino" <?= ($row['sex'] ?? '') === 'femenino' ? 'selected' : '' ?>>Femenino</option>
+          </select>
+        </div>
+
+        <div class="field col4">
+          <label>Nivel escolar</label>
+          <select name="education_level">
+            <option value="">Seleccionar</option>
+            <option value="secundaria" <?= ($row['education_level'] ?? '') === 'secundaria' ? 'selected' : '' ?>>Secundaria</option>
+            <option value="tecnico" <?= ($row['education_level'] ?? '') === 'tecnico' ? 'selected' : '' ?>>Técnico</option>
+            <option value="universitario" <?= ($row['education_level'] ?? '') === 'universitario' ? 'selected' : '' ?>>Universitario</option>
+          </select>
+        </div>
+
+        <div class="field col4">
+          <label>Nacionalidad</label>
+          <select name="nationality">
+            <option value="">Seleccionar</option>
+            <option value="nicaraguense" <?= ($row['nationality'] ?? '') === 'nicaraguense' ? 'selected' : '' ?>>Nicaragüense</option>
+            <option value="extranjero" <?= ($row['nationality'] ?? '') === 'extranjero' ? 'selected' : '' ?>>Extranjero</option>
+          </select>
+        </div>
+
+        <div class="field col6">
+          <label>Profesión</label>
+          <input name="profession" value="<?= h($row['profession'] ?? '') ?>">
         </div>
 
         <div class="field col6">
@@ -374,7 +436,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </select>
         </div>
 
-        <div class="field col6">
+        <div class="field col4">
           <label>Tipo de curso</label>
           <select name="course_type">
             <option value="barismo" <?= ($row['course_type'] ?? '') === 'barismo' ? 'selected' : '' ?>>Barismo</option>
@@ -382,7 +444,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </select>
         </div>
 
-        <div class="field col6">
+        <div class="field col4">
           <label>Nivel</label>
           <select name="course_level">
             <option value="basico" <?= ($row['course_level'] ?? '') === 'basico' ? 'selected' : '' ?>>Básico</option>
@@ -391,68 +453,99 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </select>
         </div>
 
-        <div class="field col6">
-          <label>Teléfono</label>
-          <input
-            name="phone"
-            value="<?= h($row['phone'] ?? '') ?>"
-            placeholder="Ej: 88888888"
-            maxlength="8"
-            inputmode="numeric"
-          >
-          <div class="hint">Debe tener exactamente 8 dígitos.</div>
-        </div>
-
-        <div class="field col6">
-          <label>Cédula</label>
-          <input
-            name="cedula"
-            value="<?= h($row['cedula'] ?? '') ?>"
-            placeholder="Ej: 00112345678901"
-            maxlength="14"
-            inputmode="numeric"
-          >
-          <div class="hint">Debe tener exactamente 14 dígitos.</div>
-        </div>
-
-        <div class="field col6">
-          <label>Departamento</label>
-          <select name="department">
-            <?php $dep = $row['department'] ?? ''; ?>
-            <option value="">Seleccionar departamento</option>
-            <option value="Matagalpa" <?= $dep=='Matagalpa'?'selected':'' ?>>Matagalpa</option>
-            <option value="Jinotega" <?= $dep=='Jinotega'?'selected':'' ?>>Jinotega</option>
-            <option value="Nueva Segovia" <?= $dep=='Nueva Segovia'?'selected':'' ?>>Nueva Segovia</option>
-            <option value="Madriz" <?= $dep=='Madriz'?'selected':'' ?>>Madriz</option>
-            <option value="Estelí" <?= $dep=='Estelí'?'selected':'' ?>>Estelí</option>
-            <option value="Chinandega" <?= $dep=='Chinandega'?'selected':'' ?>>Chinandega</option>
-            <option value="León" <?= $dep=='León'?'selected':'' ?>>León</option>
-            <option value="Managua" <?= $dep=='Managua'?'selected':'' ?>>Managua</option>
-            <option value="Masaya" <?= $dep=='Masaya'?'selected':'' ?>>Masaya</option>
-            <option value="Granada" <?= $dep=='Granada'?'selected':'' ?>>Granada</option>
-            <option value="Carazo" <?= $dep=='Carazo'?'selected':'' ?>>Carazo</option>
-            <option value="Rivas" <?= $dep=='Rivas'?'selected':'' ?>>Rivas</option>
-            <option value="Boaco" <?= $dep=='Boaco'?'selected':'' ?>>Boaco</option>
-            <option value="Chontales" <?= $dep=='Chontales'?'selected':'' ?>>Chontales</option>
-            <option value="Río San Juan" <?= $dep=='Río San Juan'?'selected':'' ?>>Río San Juan</option>
-            <option value="RAAN" <?= $dep=='RAAN'?'selected':'' ?>>RAAN</option>
-            <option value="RAAS" <?= $dep=='RAAS'?'selected':'' ?>>RAAS</option>
-          </select>
-        </div>
-
-        <div class="field col6">
+        <div class="field col4">
           <label>Fecha de inscripción</label>
           <input type="date" name="enrolled_at" value="<?= h($row['enrolled_at'] ?? '') ?>">
         </div>
 
+        <div class="field col4">
+          <label>Teléfono</label>
+          <input name="phone" value="<?= h($row['phone'] ?? '') ?>" placeholder="Ej: 88888888" maxlength="8" inputmode="numeric">
+          <div class="hint">Debe tener exactamente 8 dígitos.</div>
+        </div>
+
+        <div class="field col4">
+          <label>Cédula</label>
+          <input name="cedula" value="<?= h($row['cedula'] ?? '') ?>" placeholder="Ej: 00112345678901" maxlength="14" inputmode="numeric">
+          <div class="hint">Debe tener exactamente 14 dígitos.</div>
+        </div>
+
+        <div class="field col4">
+          <label>Departamento</label>
+          <select name="department" id="departmentSelect">
+            <option value="">Seleccionar departamento</option>
+            <?php foreach (array_keys($municipios) as $dep): ?>
+              <option value="<?= h($dep) ?>" <?= ($row['department'] ?? '') === $dep ? 'selected' : '' ?>><?= h($dep) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="field col4">
+          <label>Municipio</label>
+          <select name="municipality" id="municipalitySelect" data-selected="<?= h($row['municipality'] ?? '') ?>">
+            <option value="">Seleccionar municipio</option>
+          </select>
+        </div>
+
+        <div class="field col4">
+          <label>Comunidad</label>
+          <input name="community" value="<?= h($row['community'] ?? '') ?>">
+        </div>
+
+        <div class="field col4">
+          <label>Tipo de organización</label>
+          <select name="organization_type">
+            <option value="">Seleccionar</option>
+            <option value="institucion" <?= ($row['organization_type'] ?? '') === 'institucion' ? 'selected' : '' ?>>Institución</option>
+            <option value="privado" <?= ($row['organization_type'] ?? '') === 'privado' ? 'selected' : '' ?>>Privado</option>
+            <option value="emprendimiento" <?= ($row['organization_type'] ?? '') === 'emprendimiento' ? 'selected' : '' ?>>Emprendimiento</option>
+            <option value="estudiante" <?= ($row['organization_type'] ?? '') === 'estudiante' ? 'selected' : '' ?>>Estudiante</option>
+            <option value="productor" <?= ($row['organization_type'] ?? '') === 'productor' ? 'selected' : '' ?>>Productor</option>
+          </select>
+        </div>
+
+        <div class="field col4">
+          <label>Nombre de organización</label>
+          <input name="organization_name" value="<?= h($row['organization_name'] ?? '') ?>">
+        </div>
+
+        <div class="field col4">
+          <label>Teléfono de la organización</label>
+          <input name="organization_phone" value="<?= h($row['organization_phone'] ?? '') ?>" placeholder="Ej: 88888888" maxlength="8" inputmode="numeric">
+        </div>
+
         <div class="field col6">
-          <label>Organización</label>
-          <input name="organization" value="<?= h($row['organization'] ?? '') ?>" placeholder="Ej: cooperativa, asociación, empresa...">
+          <label>Ubicación de la organización</label>
+          <input name="organization_location" value="<?= h($row['organization_location'] ?? '') ?>">
         </div>
 
         <div class="field col6">
           <label>Caracterización</label>
           <input name="characterization" value="<?= h($row['characterization'] ?? '') ?>" placeholder="Ej: productor, tostador, barista, catador...">
+        </div>
+
+        <div class="field col4">
+          <label>Registro de marca</label>
+          <select name="trademark_registration">
+            <option value="">Seleccionar</option>
+            <option value="si" <?= ($row['trademark_registration'] ?? '') === 'si' ? 'selected' : '' ?>>Sí</option>
+            <option value="no" <?= ($row['trademark_registration'] ?? '') === 'no' ? 'selected' : '' ?>>No</option>
+          </select>
+        </div>
+
+        <div class="field col4">
+          <label>Número de socios</label>
+          <input type="number" min="0" name="number_of_members" value="<?= h($row['number_of_members'] ?? '') ?>">
+        </div>
+
+        <div class="field col12">
+          <label>Propósito del curso</label>
+          <textarea name="course_purpose" rows="3"><?= h($row['course_purpose'] ?? '') ?></textarea>
+        </div>
+
+        <div class="field col12">
+          <label>Proyección a futuro</label>
+          <textarea name="future_projection" rows="3"><?= h($row['future_projection'] ?? '') ?></textarea>
         </div>
 
         <div class="field col12">
@@ -470,8 +563,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 
     <div class="info-box">
-      Verificá bien la escuela, el tipo de curso, el nivel y el departamento antes de guardar.
-      Esos datos se usan en grupos, asistencia y estadísticas.
+      Verificá bien los datos personales, ubicación, organización y formación antes de guardar.
     </div>
   </section>
 </main>
@@ -485,6 +577,37 @@ function toggleSidebar() {
     sidebar.classList.toggle('collapsed');
   }
 }
+
+const municipiosPorDepartamento = <?= json_encode($municipios, JSON_UNESCAPED_UNICODE) ?>;
+
+function loadMunicipalities() {
+  const depSelect = document.getElementById('departmentSelect');
+  const muniSelect = document.getElementById('municipalitySelect');
+  const selected = muniSelect.dataset.selected || '';
+  const dep = depSelect.value;
+
+  muniSelect.innerHTML = '<option value="">Seleccionar municipio</option>';
+
+  if (dep && municipiosPorDepartamento[dep]) {
+    municipiosPorDepartamento[dep].forEach(function(muni) {
+      const opt = document.createElement('option');
+      opt.value = muni;
+      opt.textContent = muni;
+      if (muni === selected) opt.selected = true;
+      muniSelect.appendChild(opt);
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadMunicipalities();
+
+  document.getElementById('departmentSelect').addEventListener('change', function() {
+    const muniSelect = document.getElementById('municipalitySelect');
+    muniSelect.dataset.selected = '';
+    loadMunicipalities();
+  });
+});
 </script>
 </div>
 </div>

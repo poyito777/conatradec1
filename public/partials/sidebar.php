@@ -258,6 +258,11 @@ function isActive($file, $current) {
           <span class="nav-label">Asistencias</span>
         </a>
 
+        <a class="side-link <?= isActive('grades.php', $current) ?>" href="grades.php">
+  <span class="nav-icon">📊</span>
+  <span class="nav-label">Notas</span>
+</a>
+
         <?php if (($me['role'] ?? '') === 'admin'): ?>
           <a class="side-link <?= isActive('teachers.php', $current) || isActive('teacher_new.php', $current) || isActive('teacher_reset.php', $current) ?>" href="teachers.php">
             <span class="nav-icon">👨‍🏫</span>

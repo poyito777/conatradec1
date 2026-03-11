@@ -12,6 +12,8 @@ $teacherId = (int)($_GET['teacher_id'] ?? 0);
 $courseType = trim($_GET['course_type'] ?? '');
 $courseLevel = trim($_GET['course_level'] ?? '');
 $department = trim($_GET['department'] ?? '');
+$municipality = trim($_GET['municipality'] ?? '');
+$organizationType = trim($_GET['organization_type'] ?? '');
 
 $where = [];
 $params = [];
@@ -27,7 +29,7 @@ if (($me['role'] ?? '') === 'teacher') {
   }
 }
 
-// Filtro por tipo / nivel / departamento
+// Filtros
 if ($courseType !== '') {
   $where[] = "s.course_type = :ctype";
   $params[':ctype'] = $courseType;
@@ -43,9 +45,31 @@ if ($department !== '') {
   $params[':dept'] = "%{$department}%";
 }
 
+if ($municipality !== '') {
+  $where[] = "s.municipality LIKE :muni";
+  $params[':muni'] = "%{$municipality}%";
+}
+
+if ($organizationType !== '') {
+  $where[] = "s.organization_type = :otype";
+  $params[':otype'] = $organizationType;
+}
+
 // Búsqueda general
 if ($q !== '') {
-  $where[] = "(s.full_name LIKE :q OR s.student_code LIKE :q OR s.school LIKE :q OR s.cedula LIKE :q OR s.phone LIKE :q OR s.department LIKE :q OR s.organization LIKE :q OR s.characterization LIKE :q)";
+  $where[] = "(
+    s.full_name LIKE :q OR
+    s.student_code LIKE :q OR
+    s.school LIKE :q OR
+    s.cedula LIKE :q OR
+    s.phone LIKE :q OR
+    s.department LIKE :q OR
+    s.municipality LIKE :q OR
+    s.organization_name LIKE :q OR
+    s.organization_location LIKE :q OR
+    s.characterization LIKE :q OR
+    s.profession LIKE :q
+  )";
   $params[':q'] = "%{$q}%";
 }
 
@@ -72,7 +96,7 @@ LIMIT 800
 ";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
-$rows = $stmt->fetchAll();
+$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 function h($v){
   return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
@@ -87,6 +111,21 @@ function levelLabel($l){
   if ($l === 'intensivo') return 'Intensivo';
   return 'Básico';
 }
+
+function sexLabel($v){
+  if ($v === 'masculino') return 'Masculino';
+  if ($v === 'femenino') return 'Femenino';
+  return '—';
+}
+
+function organizationTypeLabel($v){
+  if ($v === 'institucion') return 'Institución';
+  if ($v === 'privado') return 'Privado';
+  if ($v === 'emprendimiento') return 'Emprendimiento';
+  if ($v === 'estudiante') return 'Estudiante';
+  if ($v === 'productor') return 'Productor';
+  return '—';
+}
 ?>
 <!doctype html>
 <html lang="es">
@@ -97,7 +136,7 @@ function levelLabel($l){
   <style>
     .container{
       padding:26px;
-      max-width:1380px;
+      max-width:1450px;
       width:100%;
       margin:0 auto;
     }
@@ -213,14 +252,6 @@ function levelLabel($l){
       white-space:nowrap;
     }
 
-    .hero{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:12px;
-      flex-wrap:wrap;
-    }
-
     .stats{
       display:flex;
       gap:12px;
@@ -283,7 +314,7 @@ function levelLabel($l){
     <form method="get" class="filters">
       <div class="field">
         <label>Buscar</label>
-        <input name="q" value="<?= h($q) ?>" placeholder="Nombre, código, escuela, teléfono, organización...">
+        <input name="q" value="<?= h($q) ?>" placeholder="Nombre, código, escuela, organización, profesión...">
       </div>
 
       <div class="field" style="min-width:170px">
@@ -308,6 +339,23 @@ function levelLabel($l){
       <div class="field" style="min-width:220px">
         <label>Departamento</label>
         <input name="department" value="<?= h($department) ?>" placeholder="Ej: Matagalpa">
+      </div>
+
+      <div class="field" style="min-width:220px">
+        <label>Municipio</label>
+        <input name="municipality" value="<?= h($municipality) ?>" placeholder="Ej: Matagalpa">
+      </div>
+
+      <div class="field" style="min-width:220px">
+        <label>Tipo de organización</label>
+        <select name="organization_type">
+          <option value="">Todos</option>
+          <option value="institucion" <?= $organizationType==='institucion'?'selected':'' ?>>Institución</option>
+          <option value="privado" <?= $organizationType==='privado'?'selected':'' ?>>Privado</option>
+          <option value="emprendimiento" <?= $organizationType==='emprendimiento'?'selected':'' ?>>Emprendimiento</option>
+          <option value="estudiante" <?= $organizationType==='estudiante'?'selected':'' ?>>Estudiante</option>
+          <option value="productor" <?= $organizationType==='productor'?'selected':'' ?>>Productor</option>
+        </select>
       </div>
 
       <?php if (($me['role'] ?? '') === 'admin'): ?>
@@ -339,13 +387,11 @@ function levelLabel($l){
           <th style="width:80px;">ID</th>
           <th style="width:150px;">Código</th>
           <th>Nombre / Escuela</th>
-          <th class="nowrap">Curso / Nivel</th>
-          <th>Depto</th>
+          <th>Curso / Nivel</th>
+          <th>Sexo</th>
+          <th>Ubicación</th>
           <th>Organización</th>
-          <th>Caracterización</th>
-          <th class="nowrap">Inscripción</th>
           <th class="nowrap">Teléfono</th>
-          <th class="nowrap">Cédula</th>
           <?php if ($me['role']==='admin'): ?><th>Docente</th><?php endif; ?>
           <th style="width:240px;">Acciones</th>
         </tr>
@@ -362,8 +408,8 @@ function levelLabel($l){
             <td>
               <div style="font-weight:800; color:#e5e7eb;"><?= h($r['full_name']) ?></div>
               <div class="small"><?= h($r['school'] ?: '—') ?></div>
-              <?php if (!empty($r['observations'])): ?>
-                <div class="small">Obs: <?= h($r['observations']) ?></div>
+              <?php if (!empty($r['profession'])): ?>
+                <div class="small">Profesión: <?= h($r['profession']) ?></div>
               <?php endif; ?>
             </td>
 
@@ -372,12 +418,19 @@ function levelLabel($l){
               <div class="small"><?= h(levelLabel($r['course_level'])) ?></div>
             </td>
 
-            <td class="muted"><?= h($r['department'] ?: '—') ?></td>
-            <td class="muted"><?= h($r['organization'] ?: '—') ?></td>
-            <td class="muted"><?= h($r['characterization'] ?: '—') ?></td>
-            <td class="muted nowrap"><?= h($r['enrolled_at'] ?: '—') ?></td>
+            <td class="muted"><?= h(sexLabel($r['sex'] ?? '')) ?></td>
+
+            <td>
+              <div class="small"><?= h($r['department'] ?: '—') ?></div>
+              <div class="small"><?= h($r['municipality'] ?: '—') ?></div>
+            </td>
+
+            <td>
+              <div class="small"><?= h(organizationTypeLabel($r['organization_type'] ?? '')) ?></div>
+              <div class="small"><?= h($r['organization_name'] ?: '—') ?></div>
+            </td>
+
             <td class="muted nowrap"><?= h($r['phone'] ?: '—') ?></td>
-            <td class="muted nowrap"><?= h($r['cedula'] ?: '—') ?></td>
 
             <?php if ($me['role']==='admin'): ?>
               <td class="muted"><?= h($r['teacher_name']) ?></td>
@@ -395,7 +448,7 @@ function levelLabel($l){
 
         <?php if(!$rows): ?>
           <tr>
-            <td colspan="<?= $me['role']==='admin' ? 12 : 11 ?>" class="muted">
+            <td colspan="<?= $me['role']==='admin' ? 10 : 9 ?>" class="muted">
               No hay estudiantes para mostrar.
             </td>
           </tr>
