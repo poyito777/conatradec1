@@ -86,9 +86,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button class="btn" type="submit">Entrar</button>
       </form>
 
+<div style="margin-top:14px;text-align:center;">
+  <a href="certificate_lookup.php" style="color:var(--muted);font-weight:700;text-decoration:none;">
+    ¿Sos estudiante? Descargá tu certificado aquí
+  </a>
+</div>
+
+
       <div class="footer-links">
         <span class="small">© <?= date('Y') ?> CONATRADEC</span>
         <a class="small" href="logout.php">Limpiar sesión</a>
+
+
+        
       </div>
     </div>
   </div>
