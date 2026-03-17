@@ -11,6 +11,16 @@ function h($v){
     return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 }
 
+function courseLabel($t){
+    return $t === 'catacion' ? 'Catación' : 'Barismo';
+}
+
+function levelLabel($l){
+    if ($l === 'avanzado') return 'Avanzado';
+    if ($l === 'intensivo') return 'Intensivo';
+    return 'Básico';
+}
+
 $id = (int)($_GET['id'] ?? 0);
 
 if ($id <= 0) {
@@ -80,52 +90,9 @@ $totalStudents = count($items);
   <title>Detalle de asistencia</title>
   <link rel="stylesheet" href="/docentes/assets/css/app.css">
   <style>
-    .app{
-      min-height:100vh;
-      display:flex;
-      flex-direction:column;
-    }
-
-    .topbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      padding:14px 24px;
-      background:rgba(0,0,0,.35);
-      border-bottom:1px solid var(--line);
-      backdrop-filter:blur(8px);
-    }
-
-    .logo{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      font-weight:700;
-    }
-
-    .logo img{
-      width:34px;
-      height:34px;
-      object-fit:contain;
-    }
-
-    .nav{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap:wrap;
-    }
-
-    .nav a{
-      padding:8px 12px;
-      border:1px solid var(--line);
-      border-radius:12px;
-      background:rgba(255,255,255,.06);
-    }
-
     .container{
       padding:26px;
-      max-width:1180px;
+      max-width:1280px;
       width:100%;
       margin:0 auto;
     }
@@ -139,7 +106,7 @@ $totalStudents = count($items);
     }
 
     .head{
-      padding:26px 26px 12px;
+      padding:24px 24px 12px;
       border-bottom:1px solid #e5e7eb;
     }
 
@@ -147,42 +114,94 @@ $totalStudents = count($items);
       display:flex;
       justify-content:space-between;
       align-items:flex-start;
-      gap:18px;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+
+    .brand{
+      display:flex;
+      gap:14px;
+      align-items:flex-start;
       flex-wrap:wrap;
     }
 
     .brand img{
-      height:64px;
+      height:58px;
       object-fit:contain;
     }
 
-    .brand h2{
-      margin:12px 0 8px;
-      font-size:30px;
+    .brand-text h2{
+      margin:0 0 8px;
+      font-size:28px;
       line-height:1.1;
       color:#0f172a;
     }
 
-    .brand p{
+    .brand-text p{
       margin:0;
       color:#4b5563;
       font-size:14px;
     }
 
-    .meta{
-      display:grid;
-      grid-template-columns:repeat(2,minmax(240px,1fr));
-      gap:10px 18px;
-      margin-top:18px;
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
     }
 
-    .meta p{
-      margin:0;
-      font-size:14px;
+    .btnS,
+    .btnG,
+    .btn2{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px 14px;
+      border-radius:12px;
+      font-weight:800;
+      text-decoration:none;
+      cursor:pointer;
+    }
+
+    .btnS{
+      border:1px solid #bbf7d0;
+      background:#ecfdf5;
+      color:#16a34a;
+    }
+
+    .btnG{
+      border:1px solid #d1d5db;
+      background:#f9fafb;
       color:#374151;
     }
 
-    .meta b{
+    .btn2{
+      border:none;
+      background:linear-gradient(180deg,#4ade80,#22c55e);
+      color:#052e16;
+    }
+
+    .meta{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(180px,1fr));
+      gap:10px 16px;
+      margin-top:18px;
+      padding:14px;
+      border:1px solid #e5e7eb;
+      border-radius:16px;
+      background:#f9fafb;
+    }
+
+    .meta-item .k{
+      margin:0 0 4px;
+      font-size:12px;
+      color:#6b7280;
+      font-weight:700;
+    }
+
+    .meta-item .v{
+      margin:0;
+      font-size:15px;
+      font-weight:800;
       color:#111827;
     }
 
@@ -190,7 +209,7 @@ $totalStudents = count($items);
       display:grid;
       grid-template-columns:repeat(3,1fr);
       gap:12px;
-      margin-top:18px;
+      margin-top:16px;
     }
 
     .sum-card{
@@ -235,7 +254,8 @@ $totalStudents = count($items);
     }
 
     .table-wrap{
-      padding:20px 26px 8px;
+      padding:18px 24px 8px;
+      overflow-x:auto;
     }
 
     table{
@@ -252,13 +272,14 @@ $totalStudents = count($items);
       background:#0f172a;
       color:#fff;
       text-align:left;
-      padding:14px 16px;
+      padding:13px 14px;
       font-size:13px;
       letter-spacing:.2px;
+      white-space:nowrap;
     }
 
     tbody td{
-      padding:14px 16px;
+      padding:13px 14px;
       border-top:1px solid #e5e7eb;
       background:#fff;
       vertical-align:middle;
@@ -269,7 +290,7 @@ $totalStudents = count($items);
     }
 
     .num{
-      width:90px;
+      width:80px;
       font-weight:900;
       color:#374151;
     }
@@ -309,7 +330,7 @@ $totalStudents = count($items);
     }
 
     .footer{
-      padding:22px 26px 28px;
+      padding:20px 24px 26px;
     }
 
     .signature{
@@ -321,41 +342,6 @@ $totalStudents = count($items);
       font-size:14px;
     }
 
-    .actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:18px;
-    }
-
-    .btnS{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:10px 14px;
-      border-radius:12px;
-      border:1px solid #bbf7d0;
-      background:#ecfdf5;
-      color:#16a34a;
-      font-weight:800;
-      text-decoration:none;
-      cursor:pointer;
-    }
-
-    .btnG{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:10px 14px;
-      border-radius:12px;
-      border:1px solid #d1d5db;
-      background:#f9fafb;
-      color:#374151;
-      font-weight:800;
-      text-decoration:none;
-      cursor:pointer;
-    }
-
     .empty{
       padding:24px;
       text-align:center;
@@ -363,34 +349,220 @@ $totalStudents = count($items);
       font-weight:700;
     }
 
-    @media(max-width:860px){
+    @media(max-width:980px){
+      .meta{
+        grid-template-columns:repeat(2,1fr);
+      }
+
       .summary{
         grid-template-columns:1fr;
       }
+    }
 
+    @media(max-width:640px){
       .meta{
         grid-template-columns:1fr;
       }
     }
 
+    @page{
+      size: landscape;
+      margin: 10mm;
+    }
+
     @media print{
       body{
-        background:#fff;
+        background:#fff !important;
+        color:#000 !important;
       }
 
-      .topbar,
-      .actions{
+      .actions,
+      .sidebar,
+      #appSidebar{
         display:none !important;
       }
 
       .container{
-        padding:0;
-        max-width:none;
+        max-width:none !important;
+        width:100% !important;
+        padding:0 !important;
+        margin:0 !important;
       }
 
       .sheet{
-        box-shadow:none;
-        border-radius:0;
+        box-shadow:none !important;
+        border-radius:0 !important;
+        background:#fff !important;
+        color:#000 !important;
+      }
+
+      .head{
+        padding:0 0 8px !important;
+        border-bottom:none !important;
+      }
+
+      .brand-row{
+        margin-bottom:6px !important;
+      }
+
+      .brand{
+        gap:10px !important;
+      }
+
+      .brand img{
+        height:42px !important;
+      }
+
+      .brand-text h2{
+        font-size:18px !important;
+        margin:0 0 4px !important;
+        color:#000 !important;
+      }
+
+      .brand-text p{
+        font-size:12px !important;
+        color:#444 !important;
+      }
+
+      .meta{
+        grid-template-columns:repeat(4,1fr) !important;
+        gap:6px !important;
+        margin-top:8px !important;
+        padding:8px !important;
+        border:1px solid #bbb !important;
+        border-radius:8px !important;
+        background:#fff !important;
+        page-break-inside:avoid;
+      }
+
+      .meta-item .k{
+        color:#444 !important;
+        font-size:11px !important;
+      }
+
+      .meta-item .v{
+        color:#000 !important;
+        font-size:12px !important;
+        font-weight:700 !important;
+      }
+
+      .summary{
+        grid-template-columns:repeat(3,1fr) !important;
+        gap:6px !important;
+        margin-top:8px !important;
+        page-break-inside:avoid;
+      }
+
+      .sum-card{
+        padding:8px !important;
+        border:1px solid #bbb !important;
+        border-radius:8px !important;
+        background:#fff !important;
+      }
+
+      .sum-card .k{
+        color:#444 !important;
+        font-size:11px !important;
+      }
+
+      .sum-card .v{
+        color:#000 !important;
+        font-size:18px !important;
+      }
+
+      .sum-card.ok,
+      .sum-card.bad{
+        background:#fff !important;
+        border-color:#bbb !important;
+      }
+
+      .table-wrap{
+        padding:8px 0 0 !important;
+        overflow:visible !important;
+      }
+
+      table{
+        width:100% !important;
+        border-collapse:collapse !important;
+        border-spacing:0 !important;
+        border:1px solid #bbb !important;
+        border-radius:0 !important;
+        table-layout:fixed !important;
+        min-width:0 !important;
+      }
+
+      thead{
+        display:table-header-group;
+      }
+
+      tr{
+        page-break-inside:avoid;
+        page-break-after:auto;
+      }
+
+      thead th{
+        background:#fff !important;
+        color:#000 !important;
+        border:1px solid #bbb !important;
+        padding:6px 7px !important;
+        font-size:11px !important;
+      }
+
+      tbody td{
+        background:#fff !important;
+        color:#000 !important;
+        border:1px solid #bbb !important;
+        padding:6px 7px !important;
+        font-size:11px !important;
+        vertical-align:top !important;
+        word-wrap:break-word;
+      }
+
+      tbody tr:nth-child(even) td{
+        background:#fff !important;
+      }
+
+      .num,
+      .name{
+        color:#000 !important;
+      }
+
+      .muted{
+        color:#444 !important;
+        font-size:10px !important;
+      }
+
+      .status-badge{
+        min-width:auto !important;
+        padding:4px 8px !important;
+        border:1px solid #999 !important;
+        background:#fff !important;
+        color:#000 !important;
+        font-size:10px !important;
+      }
+
+      .status-badge.ok,
+      .status-badge.bad{
+        background:#fff !important;
+        color:#000 !important;
+        border-color:#999 !important;
+      }
+
+      .footer{
+        padding:12px 0 0 !important;
+      }
+
+      .signature{
+        width:260px !important;
+        margin-top:20px !important;
+        color:#000 !important;
+        font-size:12px !important;
+        border-top:1px solid #777 !important;
+      }
+
+      .empty{
+        color:#000 !important;
+        background:#fff !important;
       }
     }
   </style>
@@ -398,102 +570,127 @@ $totalStudents = count($items);
 <body>
 <?php require __DIR__ . '/partials/sidebar.php'; ?>
 
-  </header>
+<main class="container">
+  <section class="sheet">
 
-  <main class="container">
-    <section class="sheet">
-
-      <div class="head">
-        <div class="brand-row">
-          <div class="brand">
-            <img src="/docentes/assets/images/1.png" alt="Logo CONATRADEC">
+    <div class="head">
+      <div class="brand-row">
+        <div class="brand">
+          <img src="/docentes/assets/images/1.png" alt="Logo CONATRADEC">
+          <div class="brand-text">
             <h2>Detalle de asistencia</h2>
             <p>Registro oficial de presencia por grupo y fecha.</p>
           </div>
         </div>
 
-        <div class="meta">
-          <p><b>Grupo:</b> <?= h($attendance['group_name']) ?></p>
-          <p><b>Código:</b> <?= h($attendance['group_code']) ?></p>
-          <p><b>Curso:</b> <?= h($attendance['course_type']) ?></p>
-          <p><b>Nivel:</b> <?= h($attendance['course_level']) ?></p>
-          <p><b>Docente:</b> <?= h($attendance['teacher_name']) ?></p>
-          <p><b>Fecha:</b> <?= h($attendance['attendance_date']) ?></p>
-          <p><b>Horario:</b> <?= h($attendance['schedule'] ?: '—') ?></p>
-          <p><b>Ubicación:</b> <?= h($attendance['location'] ?: '—') ?></p>
-        </div>
-
-        <div class="summary">
-          <div class="sum-card">
-            <div class="k">Total estudiantes</div>
-            <div class="v"><?= (int)$totalStudents ?></div>
-          </div>
-
-          <div class="sum-card ok">
-            <div class="k">Presentes</div>
-            <div class="v"><?= (int)$totalPresent ?></div>
-          </div>
-
-          <div class="sum-card bad">
-            <div class="k">Ausentes</div>
-            <div class="v"><?= (int)$totalAbsent ?></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:90px;">Número</th>
-              <th>Nombre</th>
-              <th style="width:180px;">Código</th>
-              <th style="width:180px;">Departamento</th>
-              <th style="width:200px;">Asistencia</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php if ($items): ?>
-              <?php $i = 1; foreach ($items as $item): ?>
-                <tr>
-                  <td class="num"><?= $i++ ?></td>
-                  <td>
-                    <div class="name"><?= h($item['full_name']) ?></div>
-                  </td>
-                  <td><?= h($item['student_code'] ?: '—') ?></td>
-                  <td><?= h($item['department'] ?: '—') ?></td>
-                  <td>
-                    <?php if ((int)$item['present'] === 1): ?>
-                      <span class="status-badge ok">✔ Presente</span>
-                    <?php else: ?>
-                      <span class="status-badge bad">✘ Ausente</span>
-                    <?php endif; ?>
-                  </td>
-                </tr>
-              <?php endforeach; ?>
-            <?php else: ?>
-              <tr>
-                <td colspan="5" class="empty">No hay estudiantes registrados en esta asistencia.</td>
-              </tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="footer">
-        <div class="signature">
-          Firma del docente
-        </div>
-
         <div class="actions">
-          <button class="btnS" onclick="window.print()">Imprimir / Exportar PDF</button>
           <a class="btnG" href="attendance_history.php">← Volver</a>
+          <button class="btn2" type="button" onclick="window.print()">Imprimir / Exportar PDF</button>
         </div>
       </div>
 
-    </section>
-  </main>
-  <script>
+      <div class="meta">
+        <div class="meta-item">
+          <div class="k">Grupo</div>
+          <div class="v"><?= h($attendance['group_name']) ?></div>
+        </div>
+        <div class="meta-item">
+          <div class="k">Código</div>
+          <div class="v"><?= h($attendance['group_code']) ?></div>
+        </div>
+        <div class="meta-item">
+          <div class="k">Curso</div>
+          <div class="v"><?= h(courseLabel($attendance['course_type'])) ?></div>
+        </div>
+        <div class="meta-item">
+          <div class="k">Nivel</div>
+          <div class="v"><?= h(levelLabel($attendance['course_level'])) ?></div>
+        </div>
+        <div class="meta-item">
+          <div class="k">Docente</div>
+          <div class="v"><?= h($attendance['teacher_name']) ?></div>
+        </div>
+        <div class="meta-item">
+          <div class="k">Fecha</div>
+          <div class="v"><?= h($attendance['attendance_date']) ?></div>
+        </div>
+        <div class="meta-item">
+          <div class="k">Horario</div>
+          <div class="v"><?= h($attendance['schedule'] ?: '—') ?></div>
+        </div>
+        <div class="meta-item">
+          <div class="k">Ubicación</div>
+          <div class="v"><?= h($attendance['location'] ?: '—') ?></div>
+        </div>
+      </div>
+
+      <div class="summary">
+        <div class="sum-card">
+          <div class="k">Total estudiantes</div>
+          <div class="v"><?= (int)$totalStudents ?></div>
+        </div>
+
+        <div class="sum-card ok">
+          <div class="k">Presentes</div>
+          <div class="v"><?= (int)$totalPresent ?></div>
+        </div>
+
+        <div class="sum-card bad">
+          <div class="k">Ausentes</div>
+          <div class="v"><?= (int)$totalAbsent ?></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:8%;">Número</th>
+            <th style="width:38%;">Nombre</th>
+            <th style="width:18%;">Código</th>
+            <th style="width:18%;">Departamento</th>
+            <th style="width:18%;">Asistencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if ($items): ?>
+            <?php $i = 1; foreach ($items as $item): ?>
+              <tr>
+                <td class="num"><?= $i++ ?></td>
+                <td>
+                  <div class="name"><?= h($item['full_name']) ?></div>
+                </td>
+                <td><?= h($item['student_code'] ?: '—') ?></td>
+                <td><?= h($item['department'] ?: '—') ?></td>
+                <td>
+                  <?php if ((int)$item['present'] === 1): ?>
+                    <span class="status-badge ok">✔ Presente</span>
+                  <?php else: ?>
+                    <span class="status-badge bad">✘ Ausente</span>
+                  <?php endif; ?>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <tr>
+              <td colspan="5" class="empty">No hay estudiantes registrados en esta asistencia.</td>
+            </tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footer">
+      <div class="signature">
+        Firma del docente
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<script>
 function toggleSidebar() {
   const sidebar = document.getElementById('appSidebar');
   if (window.innerWidth <= 960) {
@@ -503,6 +700,5 @@ function toggleSidebar() {
   }
 }
 </script>
-</div>
 </body>
 </html>

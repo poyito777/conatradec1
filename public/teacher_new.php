@@ -8,11 +8,11 @@ requirePasswordChangeIfNeeded();
 $error = '';
 $success = '';
 
-function gen_password(int $len=10): string {
+function gen_password(int $len = 10): string {
   $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#';
   $p = '';
   for ($i = 0; $i < $len; $i++) {
-    $p .= $alphabet[random_int(0, strlen($alphabet)-1)];
+    $p .= $alphabet[random_int(0, strlen($alphabet) - 1)];
   }
   return $p;
 }
@@ -23,31 +23,49 @@ function h($v){
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $name  = trim($_POST['name'] ?? '');
-  $email = trim($_POST['email'] ?? '');
+  $email = strtolower(trim($_POST['email'] ?? ''));
+
+  $allowedDomains = [
+    'gmail.com',
+    'hotmail.com',
+    'yahoo.com',
+    'conatradec.com'
+  ];
 
   if ($name === '' || $email === '') {
     $error = 'Completá nombre y email.';
+  } elseif (mb_strlen($name) < 3) {
+    $error = 'El nombre debe tener al menos 3 caracteres.';
   } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    $error = 'Email inválido.';
+    $error = 'El email no tiene un formato válido.';
   } else {
-    $chk = $pdo->prepare("SELECT id FROM users WHERE email=? LIMIT 1");
-    $chk->execute([$email]);
+    $domain = substr(strrchr($email, '@'), 1);
 
-    if ($chk->fetch()) {
-      $error = 'Ese email ya existe.';
+    if (!$domain || !in_array($domain, $allowedDomains, true)) {
+      $error = 'Solo se permiten correos Gmail, Hotmail, Yahoo o institucionales de CONATRADEC.';
     } else {
-      $plain = gen_password(10);
-      $hash  = password_hash($plain, PASSWORD_DEFAULT);
+      $chk = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+      $chk->execute([$email]);
 
-      $ins = $pdo->prepare("
-        INSERT INTO users (name,email,password_hash,role,is_active,must_change_password)
-        VALUES (?,?,?,?,1,1)
-      ");
-      $ins->execute([$name, $email, $hash, 'teacher']);
+      if ($chk->fetch()) {
+        $error = 'Ese email ya existe.';
+      } else {
+        $plain = gen_password(10);
+        $hash  = password_hash($plain, PASSWORD_DEFAULT);
 
-      $success = "Docente creado correctamente.";
-      $success .= "<br><b>Contraseña temporal:</b> <code>" . h($plain) . "</code>";
-      $success .= "<br><span style='color:var(--muted)'>El docente será obligado a cambiarla al iniciar sesión.</span>";
+        $ins = $pdo->prepare("
+          INSERT INTO users (name, email, password_hash, role, is_active, must_change_password)
+          VALUES (?, ?, ?, ?, 1, 1)
+        ");
+        $ins->execute([$name, $email, $hash, 'teacher']);
+
+        $success = "Docente creado correctamente.";
+        $success .= "<br><b>Contraseña temporal:</b> <code>" . h($plain) . "</code>";
+        $success .= "<br><span style='color:var(--muted)'>El docente será obligado a cambiarla al iniciar sesión.</span>";
+
+        $_POST['name'] = '';
+        $_POST['email'] = '';
+      }
     }
   }
 }
@@ -160,6 +178,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       font-size:14px;
       line-height:1.6;
     }
+
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:6px;
+    }
   </style>
 </head>
 <body>
@@ -198,9 +222,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           type="email"
           name="email"
           required
-          placeholder="docente@conatradec.local"
+          placeholder="docente@correo.com"
           value="<?= h($_POST['email'] ?? '') ?>"
         >
+        <div class="hint">Solo se permiten correos Gmail, Hotmail, Yahoo o institucionales de CONATRADEC.</div>
       </div>
 
       <div class="actions">
@@ -226,7 +251,5 @@ function toggleSidebar() {
   }
 }
 </script>
-</div>
-</div>
 </body>
 </html>

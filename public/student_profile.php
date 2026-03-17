@@ -61,12 +61,6 @@ function educationLabel($v){
   return '—';
 }
 
-function nationalityLabel($v){
-  if ($v === 'nicaraguense') return 'Nicaragüense';
-  if ($v === 'extranjero') return 'Extranjero';
-  return '—';
-}
-
 function organizationTypeLabel($v){
   if ($v === 'institucion') return 'Institución';
   if ($v === 'privado') return 'Privado';
@@ -81,6 +75,82 @@ function yesNoLabel($v){
   if ($v === 'no') return 'No';
   return '—';
 }
+
+function studentStatusClass($status){
+  if ($status === 'aprobado') return 'ok';
+  if ($status === 'desaprobado') return 'bad';
+  return 'pending';
+}
+
+function groupStatusClass($status){
+  if ($status === 'activo') return 'ok';
+  if ($status === 'finalizado') return 'bad';
+  return 'pending';
+}
+
+// =====================================================
+// Resumen de grupos + notas + asistencia por grupo
+// =====================================================
+$stmt = $pdo->prepare("
+  SELECT
+    g.id,
+    g.group_code,
+    g.name,
+    g.course_type,
+    g.course_level,
+    g.status AS group_status,
+    g.start_date,
+    g.end_date,
+    u.name AS group_teacher_name,
+    sg.exam1,
+    sg.exam2,
+    sg.exam3,
+    sg.exam4,
+    sg.exam5,
+    sg.final_grade,
+    COUNT(ai.id) AS attendance_total,
+    SUM(CASE WHEN ai.present = 1 THEN 1 ELSE 0 END) AS attendance_present
+  FROM group_students gs
+  JOIN groups_table g ON g.id = gs.group_id
+  JOIN users u ON u.id = g.teacher_id
+  LEFT JOIN student_grades sg
+    ON sg.group_id = g.id
+   AND sg.student_id = gs.student_id
+  LEFT JOIN attendances a
+    ON a.group_id = g.id
+  LEFT JOIN attendance_items ai
+    ON ai.attendance_id = a.id
+   AND ai.student_id = gs.student_id
+  WHERE gs.student_id = ?
+  GROUP BY
+    g.id, g.group_code, g.name, g.course_type, g.course_level, g.status,
+    g.start_date, g.end_date, u.name,
+    sg.exam1, sg.exam2, sg.exam3, sg.exam4, sg.exam5, sg.final_grade
+  ORDER BY g.created_at DESC, g.id DESC
+");
+$stmt->execute([$id]);
+$academicGroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// =====================================================
+// Resumen general de asistencia
+// =====================================================
+$stmt = $pdo->prepare("
+  SELECT
+    COUNT(ai.id) AS total_records,
+    SUM(CASE WHEN ai.present = 1 THEN 1 ELSE 0 END) AS total_present
+  FROM attendance_items ai
+  WHERE ai.student_id = ?
+");
+$stmt->execute([$id]);
+$attendanceSummary = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$totalAttendanceRecords = (int)($attendanceSummary['total_records'] ?? 0);
+$totalPresent = (int)($attendanceSummary['total_present'] ?? 0);
+$overallAttendancePercent = $totalAttendanceRecords > 0
+  ? round(($totalPresent / $totalAttendanceRecords) * 100, 2)
+  : null;
+
+$totalGroups = count($academicGroups);
 ?>
 <!doctype html>
 <html lang="es">
@@ -91,7 +161,7 @@ function yesNoLabel($v){
   <style>
     .container{
       padding:26px;
-      max-width:1180px;
+      max-width:1280px;
       width:100%;
       margin:0 auto;
     }
@@ -110,12 +180,13 @@ function yesNoLabel($v){
       gap:14px;
     }
 
+    .col3{grid-column:span 3}
     .col4{grid-column:span 4}
     .col6{grid-column:span 6}
     .col12{grid-column:span 12}
 
-    @media(max-width:860px){
-      .col4,.col6{grid-column:span 12}
+    @media(max-width:960px){
+      .col3,.col4,.col6{grid-column:span 12}
     }
 
     .btn2{
@@ -220,8 +291,100 @@ function yesNoLabel($v){
     .section-title{
       font-size:15px;
       font-weight:900;
-      margin:16px 0 10px;
+      margin:18px 0 10px;
       color:#e5e7eb;
+    }
+
+    .summary-card{
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:16px;
+      background:rgba(255,255,255,.05);
+    }
+
+    .summary-card .num{
+      font-size:28px;
+      font-weight:900;
+      color:#e5e7eb;
+      line-height:1;
+      margin:4px 0 0;
+    }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:110px;
+      padding:8px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:800;
+      text-transform:capitalize;
+      border:1px solid var(--line);
+    }
+
+    .status-pill.ok{
+      color:#22c55e;
+      border-color:rgba(34,197,94,.35);
+      background:rgba(34,197,94,.10);
+    }
+
+    .status-pill.bad{
+      color:#ef4444;
+      border-color:rgba(239,68,68,.35);
+      background:rgba(239,68,68,.10);
+    }
+
+    .status-pill.pending{
+      color:#f59e0b;
+      border-color:rgba(245,158,11,.35);
+      background:rgba(245,158,11,.10);
+    }
+
+    .table-wrap{
+      overflow-x:auto;
+      margin-top:10px;
+    }
+
+    table{
+      width:100%;
+      min-width:980px;
+      border-collapse:collapse;
+    }
+
+    th, td{
+      padding:12px;
+      border-bottom:1px solid var(--line);
+      text-align:left;
+      font-size:13px;
+      vertical-align:top;
+    }
+
+    th{
+      color:var(--muted);
+      font-weight:700;
+      background:rgba(255,255,255,.04);
+      white-space:nowrap;
+    }
+
+    tr:hover{
+      background:rgba(255,255,255,.04);
+    }
+
+    .small{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:4px;
+    }
+
+    .empty{
+      padding:18px;
+      text-align:center;
+      color:var(--muted);
+      font-weight:700;
+      border:1px dashed var(--line);
+      border-radius:14px;
+      background:rgba(255,255,255,.03);
     }
   </style>
 </head>
@@ -259,6 +422,35 @@ function yesNoLabel($v){
         </p>
       </div>
 
+      <div class="section-title col12">Resumen académico</div>
+
+      <div class="summary-card col3">
+        <p class="k">Nota final actual</p>
+        <div class="num"><?= h($s['final_grade'] !== null && $s['final_grade'] !== '' ? $s['final_grade'] : '—') ?></div>
+      </div>
+
+      <div class="summary-card col3">
+        <p class="k">Estado académico</p>
+        <div style="margin-top:8px;">
+          <span class="status-pill <?= h(studentStatusClass($s['status'] ?? 'pendiente')) ?>">
+            <?= h($s['status'] ?: 'pendiente') ?>
+          </span>
+        </div>
+      </div>
+
+      <div class="summary-card col3">
+        <p class="k">Asistencia general</p>
+        <div class="num"><?= $overallAttendancePercent !== null ? h($overallAttendancePercent . '%') : '—' ?></div>
+        <div class="small">
+          <?= $totalAttendanceRecords > 0 ? h($totalPresent . ' de ' . $totalAttendanceRecords . ' registros') : 'Sin registros de asistencia' ?>
+        </div>
+      </div>
+
+      <div class="summary-card col3">
+        <p class="k">Grupos asignados</p>
+        <div class="num"><?= (int)$totalGroups ?></div>
+      </div>
+
       <div class="section-title col12">Información personal</div>
 
       <div class="kv col4">
@@ -273,7 +465,7 @@ function yesNoLabel($v){
 
       <div class="kv col4">
         <p class="k">Nacionalidad</p>
-        <p class="v"><?= h(nationalityLabel($s['nationality'] ?? '')) ?></p>
+        <p class="v"><?= h($s['nationality'] ?: '—') ?></p>
       </div>
 
       <div class="kv col6">
@@ -316,6 +508,74 @@ function yesNoLabel($v){
       <div class="kv col6">
         <p class="k">Propósito del curso</p>
         <p class="v"><?= h($s['course_purpose'] ?: '—') ?></p>
+      </div>
+
+      <div class="section-title col12">Trayectoria académica</div>
+
+      <div class="col12">
+        <?php if ($academicGroups): ?>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Grupo</th>
+                  <th>Curso</th>
+                  <th>Docente</th>
+                  <th>Notas registradas</th>
+                  <th>Nota final</th>
+                  <th>Asistencia</th>
+                  <th>Estado del grupo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($academicGroups as $g): ?>
+                  <?php
+                    $attendanceTotal = (int)($g['attendance_total'] ?? 0);
+                    $attendancePresent = (int)($g['attendance_present'] ?? 0);
+                    $attendancePercent = $attendanceTotal > 0
+                      ? round(($attendancePresent / $attendanceTotal) * 100, 2)
+                      : null;
+
+                    $gradesList = [];
+                    foreach (['exam1','exam2','exam3','exam4','exam5'] as $examKey) {
+                      if ($g[$examKey] !== null && $g[$examKey] !== '') {
+                        $gradesList[] = $g[$examKey];
+                      }
+                    }
+                  ?>
+                  <tr>
+                    <td>
+                      <strong><?= h($g['group_code']) ?></strong>
+                      <div class="small"><?= h($g['name']) ?></div>
+                    </td>
+                    <td>
+                      <?= h(courseLabel($g['course_type'])) ?> / <?= h(levelLabel($g['course_level'])) ?>
+                      <div class="small">
+                        <?= h($g['start_date'] ?: '—') ?> a <?= h($g['end_date'] ?: '—') ?>
+                      </div>
+                    </td>
+                    <td><?= h($g['group_teacher_name']) ?></td>
+                    <td><?= $gradesList ? h(implode(' / ', $gradesList)) : '—' ?></td>
+                    <td><?= h($g['final_grade'] !== null && $g['final_grade'] !== '' ? $g['final_grade'] : '—') ?></td>
+                    <td>
+                      <?= $attendancePercent !== null ? h($attendancePercent . '%') : '—' ?>
+                      <div class="small">
+                        <?= $attendanceTotal > 0 ? h($attendancePresent . '/' . $attendanceTotal . ' presentes') : 'Sin asistencias registradas' ?>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="status-pill <?= h(groupStatusClass($g['group_status'] ?? '')) ?>">
+                        <?= h($g['group_status'] ?: '—') ?>
+                      </span>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php else: ?>
+          <div class="empty">Este estudiante todavía no tiene grupos asignados.</div>
+        <?php endif; ?>
       </div>
 
       <div class="section-title col12">Ubicación</div>
@@ -413,7 +673,5 @@ function toggleSidebar() {
   }
 }
 </script>
-</div>
-</div>
 </body>
 </html>

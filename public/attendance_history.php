@@ -11,6 +11,22 @@ function h($v){
     return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 }
 
+function courseLabel($t){
+    return $t === 'catacion' ? 'Catación' : 'Barismo';
+}
+
+function levelLabel($l){
+    if ($l === 'avanzado') return 'Avanzado';
+    if ($l === 'intensivo') return 'Intensivo';
+    return 'Básico';
+}
+
+function groupStatusClass($status){
+    if ($status === 'activo') return 'ok';
+    if ($status === 'finalizado') return 'bad';
+    return 'pending';
+}
+
 $where = [];
 $params = [];
 
@@ -72,6 +88,8 @@ ORDER BY a.attendance_date DESC, a.id DESC
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$totalRows = count($rows);
 ?>
 <!doctype html>
 <html lang="es">
@@ -80,213 +98,294 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
   <title>Historial de asistencias</title>
   <link rel="stylesheet" href="/docentes/assets/css/app.css">
   <style>
-    .app{min-height:100vh;display:flex;flex-direction:column}
-    .topbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      padding:14px 24px;
-      background:rgba(0,0,0,.35);
-      border-bottom:1px solid var(--line);
-      backdrop-filter:blur(8px)
-    }
-    .logo{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      font-weight:700
-    }
-    .logo img{
-      width:34px;
-      height:34px;
-      object-fit:contain
-    }
-    .nav{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap:wrap
-    }
-    .nav a{
-      padding:8px 12px;
-      border:1px solid var(--line);
-      border-radius:12px;
-      background:rgba(255,255,255,.06)
-    }
     .container{
       padding:26px;
-      max-width:1250px;
+      max-width:1320px;
       width:100%;
-      margin:0 auto
+      margin:0 auto;
     }
+
     .panel{
       background:linear-gradient(180deg,var(--card2),var(--card));
       border:1px solid var(--line);
       border-radius:var(--radius);
       padding:18px;
-      box-shadow:var(--shadow)
+      box-shadow:var(--shadow);
     }
-    table{
-      width:100%;
-      border-collapse:collapse;
-      margin-top:14px
+
+    .hero{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      flex-wrap:wrap;
     }
-    th,td{
-      padding:12px;
-      border-bottom:1px solid var(--line);
-      text-align:left;
-      font-size:14px;
-      vertical-align:top
+
+    .muted{
+      color:var(--muted);
     }
-    th{color:var(--muted)}
+
+    .stats{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+
+    .stat{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 12px;
+      border-radius:999px;
+      background:rgba(255,255,255,.05);
+      border:1px solid var(--line);
+      color:#e5e7eb;
+      font-size:13px;
+      font-weight:700;
+    }
+
     .filters{
       display:flex;
       gap:10px;
       flex-wrap:wrap;
       align-items:end;
-      margin-top:12px
+      margin-top:16px;
+      margin-bottom:6px;
     }
+
     .filters .field{
       margin-top:0;
-      min-width:180px
+      min-width:180px;
     }
+
+    .table-wrap{
+      overflow-x:auto;
+      margin-top:14px;
+    }
+
+    table{
+      width:100%;
+      min-width:1120px;
+      border-collapse:collapse;
+    }
+
+    th, td{
+      padding:12px;
+      border-bottom:1px solid var(--line);
+      text-align:left;
+      font-size:14px;
+      vertical-align:top;
+    }
+
+    th{
+      color:var(--muted);
+      background:rgba(255,255,255,.04);
+      white-space:nowrap;
+    }
+
+    tr:hover{
+      background:rgba(255,255,255,.04);
+    }
+
+    .code{
+      font-weight:800;
+      color:#e5e7eb;
+    }
+
+    .small{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:4px;
+    }
+
     .btnS{
-      display:inline-block;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
       padding:8px 12px;
       border-radius:12px;
       border:1px solid rgba(47,191,113,.35);
       background:rgba(47,191,113,.10);
       color:var(--green);
       font-weight:800;
-      text-decoration:none
+      text-decoration:none;
+      cursor:pointer;
     }
+
     .btnG{
-      display:inline-block;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
       padding:8px 12px;
       border-radius:12px;
       border:1px solid rgba(148,163,184,.35);
       background:rgba(255,255,255,.06);
       color:rgba(255,255,255,.92);
       font-weight:700;
-      text-decoration:none
+      text-decoration:none;
+      cursor:pointer;
     }
+
     .pill{
-      display:inline-block;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:72px;
       padding:6px 10px;
       border-radius:999px;
       border:1px solid var(--line);
-      font-size:12px
+      font-size:12px;
+      font-weight:800;
     }
-    .ok{
-      border-color:rgba(47,191,113,.45);
-      color:var(--green)
+
+    .pill.ok{
+      border-color:rgba(34,197,94,.35);
+      color:#22c55e;
+      background:rgba(34,197,94,.10);
     }
-    .bad{
-      border-color:rgba(255,90,95,.45);
-      color:#fff
+
+    .pill.bad{
+      border-color:rgba(239,68,68,.35);
+      color:#fca5a5;
+      background:rgba(239,68,68,.10);
     }
-    .muted{color:var(--muted)}
+
+    .pill.pending{
+      border-color:rgba(245,158,11,.35);
+      color:#f59e0b;
+      background:rgba(245,158,11,.10);
+    }
+
+    .empty{
+      padding:20px;
+      text-align:center;
+      color:var(--muted);
+      font-weight:700;
+    }
+
+    @media(max-width:860px){
+      .filters .field{
+        min-width:100%;
+      }
+    }
   </style>
 </head>
 <body>
-  <?php require __DIR__ . '/partials/sidebar.php'; ?>
+<?php require __DIR__ . '/partials/sidebar.php'; ?>
 
+<main class="container">
+  <section class="panel">
+    <div class="hero">
+      <div>
+        <h2 style="margin:0 0 6px;">Historial de asistencias</h2>
+        <p style="margin:0;color:var(--muted);">
+          <?= (($me['role'] ?? '') === 'admin') ? 'Vista global de asistencias registradas' : 'Asistencias registradas en tus grupos' ?>
+        </p>
 
-
-   
-  </header>
-
-  <main class="container">
-    <section class="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-        <div>
-          <h2 style="margin:0 0 6px;">Historial de asistencias</h2>
-          <p style="margin:0;color:var(--muted);">
-            <?= (($me['role'] ?? '') === 'admin') ? 'Vista global' : 'Solo tus grupos' ?>
-          </p>
+        <div class="stats">
+          <div class="stat">Registros encontrados: <?= (int)$totalRows ?></div>
         </div>
       </div>
+    </div>
 
-      <form method="get" class="filters">
-        <div class="field">
-          <label>Buscar</label>
-          <input name="q" value="<?= h($q) ?>" placeholder="Grupo, código o docente">
-        </div>
+    <form method="get" class="filters">
+      <div class="field">
+        <label>Buscar</label>
+        <input name="q" value="<?= h($q) ?>" placeholder="Grupo, código o docente">
+      </div>
 
-        <div class="field">
-          <label>Desde</label>
-          <input type="date" name="date_from" value="<?= h($dateFrom) ?>">
-        </div>
+      <div class="field">
+        <label>Desde</label>
+        <input type="date" name="date_from" value="<?= h($dateFrom) ?>">
+      </div>
 
-        <div class="field">
-          <label>Hasta</label>
-          <input type="date" name="date_to" value="<?= h($dateTo) ?>">
-        </div>
+      <div class="field">
+        <label>Hasta</label>
+        <input type="date" name="date_to" value="<?= h($dateTo) ?>">
+      </div>
 
-        <div class="field">
-          <button class="btn" type="submit">Filtrar</button>
-        </div>
+      <div class="field">
+        <button class="btn" type="submit">Filtrar</button>
+      </div>
 
-        <div class="field">
-          <a class="btnG" href="attendance_history.php">Limpiar</a>
-        </div>
-      </form>
+      <div class="field">
+        <a class="btnG" href="attendance_history.php">Limpiar</a>
+      </div>
+    </form>
 
+    <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Fecha</th>
+            <th style="width:120px;">Fecha</th>
             <th>Grupo</th>
-            <th>Código</th>
-            <th>Curso</th>
-            <th>Nivel</th>
+            <th style="width:150px;">Código</th>
+            <th style="width:180px;">Curso / Nivel</th>
             <?php if (($me['role'] ?? '') === 'admin'): ?>
-              <th>Docente</th>
+              <th style="width:170px;">Docente</th>
             <?php endif; ?>
-            <th>Presentes</th>
-            <th>Ausentes</th>
-            <th>Estado grupo</th>
-            <th>Acciones</th>
+            <th style="width:100px;">Presentes</th>
+            <th style="width:100px;">Ausentes</th>
+            <th style="width:130px;">Estado grupo</th>
+            <th style="width:130px;">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($rows as $r): ?>
+          <?php if ($rows): ?>
+            <?php foreach ($rows as $r): ?>
+              <tr>
+                <td><?= h($r['attendance_date']) ?></td>
+
+                <td>
+                  <div class="code"><?= h($r['group_name']) ?></div>
+                </td>
+
+                <td>
+                  <span class="code"><?= h($r['group_code']) ?></span>
+                </td>
+
+                <td>
+                  <?= h(courseLabel($r['course_type'])) ?> / <?= h(levelLabel($r['course_level'])) ?>
+                </td>
+
+                <?php if (($me['role'] ?? '') === 'admin'): ?>
+                  <td><?= h($r['teacher_name']) ?></td>
+                <?php endif; ?>
+
+                <td>
+                  <span class="pill ok"><?= (int)$r['total_present'] ?></span>
+                </td>
+
+                <td>
+                  <span class="pill bad"><?= (int)$r['total_absent'] ?></span>
+                </td>
+
+                <td>
+                  <span class="pill <?= h(groupStatusClass($r['group_status'] ?? '')) ?>">
+                    <?= h($r['group_status']) ?>
+                  </span>
+                </td>
+
+                <td>
+                  <a class="btnS" href="attendance_view.php?id=<?= (int)$r['id'] ?>">Ver detalle</a>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          <?php else: ?>
             <tr>
-              <td><?= h($r['attendance_date']) ?></td>
-              <td><?= h($r['group_name']) ?></td>
-              <td><b><?= h($r['group_code']) ?></b></td>
-              <td><?= h($r['course_type']) ?></td>
-              <td><?= h($r['course_level']) ?></td>
-
-              <?php if (($me['role'] ?? '') === 'admin'): ?>
-                <td><?= h($r['teacher_name']) ?></td>
-              <?php endif; ?>
-
-              <td>
-                <span class="pill ok"><?= (int)$r['total_present'] ?></span>
-              </td>
-              <td>
-                <span class="pill bad"><?= (int)$r['total_absent'] ?></span>
-              </td>
-              <td><?= h($r['group_status']) ?></td>
-              <td>
-                <a class="btnS" href="attendance_view.php?id=<?= (int)$r['id'] ?>">Ver detalle</a>
-              </td>
-            </tr>
-          <?php endforeach; ?>
-
-          <?php if (!$rows): ?>
-            <tr>
-              <td colspan="<?= (($me['role'] ?? '') === 'admin') ? 10 : 9 ?>" class="muted">
+              <td colspan="<?= (($me['role'] ?? '') === 'admin') ? 9 : 8 ?>" class="empty">
                 No hay asistencias registradas.
               </td>
             </tr>
           <?php endif; ?>
         </tbody>
       </table>
-    </section>
-  </main>
-  <script>
+    </div>
+  </section>
+</main>
+
+<script>
 function toggleSidebar() {
   const sidebar = document.getElementById('appSidebar');
   if (window.innerWidth <= 960) {
@@ -295,6 +394,6 @@ function toggleSidebar() {
     sidebar.classList.toggle('collapsed');
   }
 }
-</div>
+</script>
 </body>
 </html>

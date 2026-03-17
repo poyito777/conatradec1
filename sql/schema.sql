@@ -1,300 +1,201 @@
+CREATE DATABASE IF NOT EXISTS docentes_db
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_general_ci;
+
+USE docentes_db;
+
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS attendance_items;
 DROP TABLE IF EXISTS attendances;
 DROP TABLE IF EXISTS group_students;
-DROP TABLE IF EXISTS groups_table;
 DROP TABLE IF EXISTS student_grades;
+DROP TABLE IF EXISTS groups_table;
 DROP TABLE IF EXISTS students;
 DROP TABLE IF EXISTS users;
 
--- ======================================================
--- USERS
--- ======================================================
+SET FOREIGN_KEY_CHECKS = 1;
 
+-- =========================================================
+-- TABLA: users
+-- =========================================================
 CREATE TABLE users (
-
   id INT AUTO_INCREMENT PRIMARY KEY,
-
   name VARCHAR(120) NOT NULL,
-  email VARCHAR(150) NOT NULL UNIQUE,
+  email VARCHAR(190) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
+  role ENUM('admin','teacher') NOT NULL DEFAULT 'teacher',
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  must_change_password TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-  role ENUM('admin','teacher') DEFAULT 'teacher',
-
-  must_change_password TINYINT(1) DEFAULT 1,
-  is_active TINYINT(1) DEFAULT 1,
-
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP
-
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-
-
--- ======================================================
--- STUDENTS
--- ======================================================
-
+-- =========================================================
+-- TABLA: students
+-- =========================================================
 CREATE TABLE students (
-
   id INT AUTO_INCREMENT PRIMARY KEY,
-
   teacher_id INT NOT NULL,
-
-  student_code VARCHAR(20) UNIQUE,
-
+  student_code VARCHAR(20) NULL UNIQUE,
   full_name VARCHAR(200) NOT NULL,
-
-  sex ENUM('masculino','femenino'),
-
-  education_level ENUM(
-    'secundaria',
-    'tecnico',
-    'universitario'
-  ),
-
-  profession VARCHAR(150),
-
-  nationality ENUM(
-    'nicaraguense',
-    'extranjero'
-  ),
-
-  phone VARCHAR(20),
-  cedula VARCHAR(20),
-
-  school VARCHAR(200),
-
-  course_type ENUM(
-    'barismo',
-    'catacion'
-  ) DEFAULT 'barismo',
-
-  course_level ENUM(
-    'basico',
-    'avanzado',
-    'intensivo'
-  ) DEFAULT 'basico',
-
-  enrolled_at DATE,
-
-  department VARCHAR(120),
-  municipality VARCHAR(120),
-  community VARCHAR(120),
-
-  organization_type ENUM(
-    'institucion',
-    'privado',
-    'emprendimiento',
-    'estudiante',
-    'productor'
-  ),
-
-  organization_name VARCHAR(200),
-  organization_phone VARCHAR(20),
-  organization_location VARCHAR(200),
-
-  characterization VARCHAR(200),
-
-  trademark_registration ENUM('si','no'),
-
-  course_purpose TEXT,
-  number_of_members INT,
-  future_projection TEXT,
-
-  final_grade DECIMAL(5,2),
-
-  status ENUM(
-    'pendiente',
-    'aprobado',
-    'desaprobado'
-  ) DEFAULT 'pendiente',
-
-  observations TEXT,
-  notes TEXT,
-
+  sex ENUM('masculino','femenino') NULL,
+  education_level ENUM('secundaria','tecnico','universitario') NULL,
+  profession VARCHAR(150) NULL,
+  nationality ENUM('nicaraguense','extranjero') NULL,
+  phone VARCHAR(20) NULL,
+  cedula VARCHAR(20) NULL,
+  school VARCHAR(200) NULL,
+  course_type ENUM('barismo','catacion') NOT NULL DEFAULT 'barismo',
+  course_level ENUM('basico','avanzado','intensivo') NOT NULL DEFAULT 'basico',
+  enrolled_at DATE NULL,
+  department VARCHAR(120) NULL,
+  municipality VARCHAR(120) NULL,
+  community VARCHAR(120) NULL,
+  organization_type ENUM('institucion','privado','emprendimiento','estudiante','productor') NULL,
+  organization_name VARCHAR(200) NULL,
+  organization_phone VARCHAR(20) NULL,
+  organization_location VARCHAR(200) NULL,
+  characterization VARCHAR(200) NULL,
+  trademark_registration ENUM('si','no') NULL,
+  course_purpose TEXT NULL,
+  number_of_members INT NULL,
+  future_projection TEXT NULL,
+  final_grade DECIMAL(5,2) NULL,
+  status ENUM('pendiente','aprobado','desaprobado') NOT NULL DEFAULT 'pendiente',
+  observations TEXT NULL,
+  notes TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_students_teacher_id (teacher_id),
+  CONSTRAINT fk_students_teacher
+    FOREIGN KEY (teacher_id)
+    REFERENCES users(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-  INDEX idx_teacher (teacher_id),
-
-  CONSTRAINT fk_student_teacher
-  FOREIGN KEY (teacher_id)
-  REFERENCES users(id)
-  ON DELETE CASCADE
-
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-
-
--- ======================================================
--- GROUPS TABLE
--- ======================================================
-
-
+-- =========================================================
+-- TABLA: groups_table
+-- =========================================================
 CREATE TABLE groups_table (
-
   id INT AUTO_INCREMENT PRIMARY KEY,
-
+  group_code VARCHAR(30) NOT NULL,
   teacher_id INT NOT NULL,
-
   name VARCHAR(200) NOT NULL,
-
-  course_type ENUM(
-    'barismo',
-    'catacion'
-  ),
-
-  course_level ENUM(
-    'basico',
-    'avanzado',
-    'intensivo'
-  ),
-
-  department VARCHAR(120),
-
-  start_date DATE,
-  end_date DATE,
-
+  capacity INT NULL,
+  schedule VARCHAR(120) NULL,
+  location VARCHAR(200) NULL,
+  course_type ENUM('barismo','catacion') NOT NULL,
+  course_level ENUM('basico','avanzado','intensivo') NOT NULL,
+  status ENUM('activo','finalizado','cancelado') NOT NULL DEFAULT 'activo',
+  notes TEXT NULL,
+  department VARCHAR(120) NULL,
+  start_date DATE NULL,
+  end_date DATE NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_group_code (group_code),
+  INDEX idx_groups_teacher_id (teacher_id),
+  CONSTRAINT fk_groups_teacher
+    FOREIGN KEY (teacher_id)
+    REFERENCES users(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-  CONSTRAINT fk_group_teacher
-  FOREIGN KEY (teacher_id)
-  REFERENCES users(id)
-  ON DELETE CASCADE
-
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-
-
--- ======================================================
--- GROUPS STUDENTS
--- ======================================================
-
+-- =========================================================
+-- TABLA: group_students
+-- =========================================================
 CREATE TABLE group_students (
-
   id INT AUTO_INCREMENT PRIMARY KEY,
-
   group_id INT NOT NULL,
   student_id INT NOT NULL,
-
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
   UNIQUE KEY unique_group_student (group_id, student_id),
+  INDEX idx_group_students_group_id (group_id),
+  INDEX idx_group_students_student_id (student_id),
+  CONSTRAINT fk_group_students_group
+    FOREIGN KEY (group_id)
+    REFERENCES groups_table(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_group_students_student
+    FOREIGN KEY (student_id)
+    REFERENCES students(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-  CONSTRAINT fk_groupstudent_group
-  FOREIGN KEY (group_id)
-  REFERENCES groups_table(id)
-  ON DELETE CASCADE,
-
-  CONSTRAINT fk_groupstudent_student
-  FOREIGN KEY (student_id)
-  REFERENCES students(id)
-  ON DELETE CASCADE
-
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-
--- ======================================================
--- ATTENDANCES
--- ======================================================
-
+-- =========================================================
+-- TABLA: attendances
+-- =========================================================
 CREATE TABLE attendances (
-
   id INT AUTO_INCREMENT PRIMARY KEY,
-
   group_id INT NOT NULL,
-
+  teacher_id INT NULL,
   attendance_date DATE NOT NULL,
-
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_group_attendance_date (group_id, attendance_date),
+  INDEX idx_attendances_group_id (group_id),
+  INDEX idx_attendances_teacher_id (teacher_id),
+  CONSTRAINT fk_attendances_group
+    FOREIGN KEY (group_id)
+    REFERENCES groups_table(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_attendances_teacher
+    FOREIGN KEY (teacher_id)
+    REFERENCES users(id)
+    ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-  CONSTRAINT fk_attendance_group
-  FOREIGN KEY (group_id)
-  REFERENCES groups_table(id)
-  ON DELETE CASCADE
-
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-
-
--- ======================================================
--- ATTENDANCE ITEMS
--- ======================================================
-
+-- =========================================================
+-- TABLA: attendance_items
+-- =========================================================
 CREATE TABLE attendance_items (
-
   id INT AUTO_INCREMENT PRIMARY KEY,
-
   attendance_id INT NOT NULL,
   student_id INT NOT NULL,
-
-  status ENUM(
-    'presente',
-    'ausente'
-  ) DEFAULT 'presente',
-
+  present TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
   UNIQUE KEY unique_attendance_student (attendance_id, student_id),
+  INDEX idx_attendance_items_attendance_id (attendance_id),
+  INDEX idx_attendance_items_student_id (student_id),
+  CONSTRAINT fk_attendance_items_attendance
+    FOREIGN KEY (attendance_id)
+    REFERENCES attendances(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_attendance_items_student
+    FOREIGN KEY (student_id)
+    REFERENCES students(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-  CONSTRAINT fk_attendanceitem_attendance
-  FOREIGN KEY (attendance_id)
-  REFERENCES attendances(id)
-  ON DELETE CASCADE,
-
-  CONSTRAINT fk_attendanceitem_student
-  FOREIGN KEY (student_id)
-  REFERENCES students(id)
-  ON DELETE CASCADE
-
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-
-
--- ======================================================
--- STUDENT GRADES
--- ======================================================
-
-
+-- =========================================================
+-- TABLA: student_grades
+-- =========================================================
 CREATE TABLE student_grades (
-
   id INT AUTO_INCREMENT PRIMARY KEY,
-
   student_id INT NOT NULL,
   group_id INT NOT NULL,
-  teacher_id INT NOT NULL,
-
-  exam1 DECIMAL(5,2),
-  exam2 DECIMAL(5,2),
-  exam3 DECIMAL(5,2),
-  exam4 DECIMAL(5,2),
-  exam5 DECIMAL(5,2),
-
-  final_grade DECIMAL(5,2),
-
+  teacher_id INT NULL,
+  exam1 DECIMAL(5,2) NULL,
+  exam2 DECIMAL(5,2) NULL,
+  exam3 DECIMAL(5,2) NULL,
+  exam4 DECIMAL(5,2) NULL,
+  exam5 DECIMAL(5,2) NULL,
+  final_grade DECIMAL(5,2) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
-
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY unique_student_grade (student_id, group_id),
-
-  CONSTRAINT fk_grade_student
-  FOREIGN KEY (student_id)
-  REFERENCES students(id)
-  ON DELETE CASCADE,
-
-  CONSTRAINT fk_grade_group
-  FOREIGN KEY (group_id)
-  REFERENCES groups_table(id)
-  ON DELETE CASCADE,
-
-  CONSTRAINT fk_grade_teacher
-  FOREIGN KEY (teacher_id)
-  REFERENCES users(id)
-  ON DELETE CASCADE
-
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-SET FOREIGN_KEY_CHECKS = 1;
+  INDEX idx_student_grades_student_id (student_id),
+  INDEX idx_student_grades_group_id (group_id),
+  INDEX idx_student_grades_teacher_id (teacher_id),
+  CONSTRAINT fk_student_grades_student
+    FOREIGN KEY (student_id)
+    REFERENCES students(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_student_grades_group
+    FOREIGN KEY (group_id)
+    REFERENCES groups_table(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_student_grades_teacher
+    FOREIGN KEY (teacher_id)
+    REFERENCES users(id)
+    ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

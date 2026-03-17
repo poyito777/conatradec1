@@ -65,7 +65,7 @@ $row = [
   'organization_name' => '',
   'organization_phone' => '',
   'organization_location' => '',
-  'organization' => '', // legado
+  'organization' => '',
   'characterization' => '',
   'trademark_registration' => '',
   'course_purpose' => '',
@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $course_level = trim($_POST['course_level'] ?? 'basico');
 
   $phone = trim($_POST['phone'] ?? '');
-  $cedula = trim($_POST['cedula'] ?? '');
+  $cedula = strtoupper(trim($_POST['cedula'] ?? ''));
   $department = trim($_POST['department'] ?? '');
   $municipality = trim($_POST['municipality'] ?? '');
   $community = trim($_POST['community'] ?? '');
@@ -145,7 +145,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 
   $phoneDigits = preg_replace('/\D+/', '', $phone);
-  $cedulaDigits = preg_replace('/\D+/', '', $cedula);
   $orgPhoneDigits = preg_replace('/\D+/', '', $organization_phone);
 
   // Validaciones
@@ -157,16 +156,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $error = "Sexo inválido.";
   } elseif ($education_level !== '' && !in_array($education_level, ['secundaria','tecnico','universitario'], true)) {
     $error = "Nivel escolar inválido.";
-  } elseif ($nationality !== '' && !in_array($nationality, ['nicaraguense','extranjero'], true)) {
-    $error = "Nacionalidad inválida.";
   } elseif (!in_array($course_type, ['barismo','catacion'], true)) {
     $error = "Tipo de curso inválido.";
   } elseif (!in_array($course_level, ['basico','avanzado','intensivo'], true)) {
     $error = "Nivel inválido.";
   } elseif ($phone !== '' && strlen($phoneDigits) !== 8) {
     $error = "El teléfono debe tener exactamente 8 dígitos.";
-  } elseif ($cedula !== '' && strlen($cedulaDigits) !== 14) {
-    $error = "La cédula debe tener exactamente 14 dígitos.";
+  } elseif ($cedula !== '' && !preg_match('/^\d{13}[A-Z]$/', $cedula)) {
+    $error = "La cédula debe tener exactamente 13 números y 1 letra.";
   } elseif ($organization_phone !== '' && strlen($orgPhoneDigits) !== 8) {
     $error = "El teléfono de la organización debe tener exactamente 8 dígitos.";
   } elseif ($organization_type !== '' && !in_array($organization_type, ['institucion','privado','emprendimiento','estudiante','productor'], true)) {
@@ -219,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $course_type,
         $course_level,
         ($phone === '' ? null : $phoneDigits),
-        ($cedula === '' ? null : $cedulaDigits),
+        ($cedula === '' ? null : $cedula),
         $department,
         $municipality,
         $community,
@@ -265,7 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $course_type,
         $course_level,
         ($phone === '' ? null : $phoneDigits),
-        ($cedula === '' ? null : $cedulaDigits),
+        ($cedula === '' ? null : $cedula),
         $department,
         $municipality,
         $community,
@@ -412,11 +409,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="field col4">
           <label>Nacionalidad</label>
-          <select name="nationality">
-            <option value="">Seleccionar</option>
-            <option value="nicaraguense" <?= ($row['nationality'] ?? '') === 'nicaraguense' ? 'selected' : '' ?>>Nicaragüense</option>
-            <option value="extranjero" <?= ($row['nationality'] ?? '') === 'extranjero' ? 'selected' : '' ?>>Extranjero</option>
-          </select>
+          <input
+            type="text"
+            name="nationality"
+            value="<?= h($row['nationality'] ?? '') ?>"
+            placeholder="Ej: Nicaragüense"
+          >
         </div>
 
         <div class="field col6">
@@ -466,8 +464,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="field col4">
           <label>Cédula</label>
-          <input name="cedula" value="<?= h($row['cedula'] ?? '') ?>" placeholder="Ej: 00112345678901" maxlength="14" inputmode="numeric">
-          <div class="hint">Debe tener exactamente 14 dígitos.</div>
+          <input
+            name="cedula"
+            value="<?= h($row['cedula'] ?? '') ?>"
+            placeholder="Ej: 0011234567890A"
+            maxlength="14"
+            pattern="\d{13}[A-Za-z]"
+            title="Debe contener 13 números y 1 letra"
+            style="text-transform:uppercase;"
+          >
+          <div class="hint">Debe tener exactamente 13 números y 1 letra.</div>
         </div>
 
         <div class="field col4">
@@ -607,9 +613,14 @@ document.addEventListener('DOMContentLoaded', function() {
     muniSelect.dataset.selected = '';
     loadMunicipalities();
   });
+
+  const cedulaInput = document.querySelector('input[name="cedula"]');
+  if (cedulaInput) {
+    cedulaInput.addEventListener('input', function() {
+      this.value = this.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 14);
+    });
+  }
 });
 </script>
-</div>
-</div>
 </body>
 </html>

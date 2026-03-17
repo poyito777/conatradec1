@@ -11,6 +11,16 @@ function h($v){
     return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 }
 
+function courseLabel($t){
+    return $t === 'catacion' ? 'Catación' : 'Barismo';
+}
+
+function levelLabel($l){
+    if ($l === 'avanzado') return 'Avanzado';
+    if ($l === 'intensivo') return 'Intensivo';
+    return 'Básico';
+}
+
 $where = "";
 $params = [];
 
@@ -140,6 +150,11 @@ $finalized = isset($_GET['finalized']) && $_GET['finalized'] == '1';
       color:#fca5a5;
     }
 
+    .cancelado{
+      border-color:rgba(148,163,184,.45);
+      color:#cbd5e1;
+    }
+
     .ok-msg{
       margin-top:14px;
       padding:12px 14px;
@@ -175,10 +190,15 @@ $finalized = isset($_GET['finalized']) && $_GET['finalized'] == '1';
       font-weight:700;
     }
 
+    .table-wrap{
+      overflow-x:auto;
+      margin-top:14px;
+    }
+
     table{
       width:100%;
+      min-width:1100px;
       border-collapse:collapse;
-      margin-top:14px;
     }
 
     th, td{
@@ -192,6 +212,7 @@ $finalized = isset($_GET['finalized']) && $_GET['finalized'] == '1';
     th{
       color:var(--muted);
       background:rgba(255,255,255,.04);
+      white-space:nowrap;
     }
 
     tr:hover{
@@ -243,70 +264,74 @@ $finalized = isset($_GET['finalized']) && $_GET['finalized'] == '1';
       <div class="ok-msg">Grupo finalizado correctamente.</div>
     <?php endif; ?>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Código</th>
-          <th>Nombre</th>
-          <th>Curso</th>
-          <th>Nivel</th>
-          <th>Horario</th>
-          <th>Ubicación</th>
-          <th>Estudiantes</th>
-          <?php if (($me['role'] ?? '') === 'admin'): ?>
-            <th>Docente</th>
-          <?php endif; ?>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <?php foreach ($groups as $g): ?>
+    <div class="table-wrap">
+      <table>
+        <thead>
           <tr>
-            <td><b><?= h($g['group_code']) ?></b></td>
-            <td><?= h($g['name']) ?></td>
-            <td><?= h($g['course_type']) ?></td>
-            <td><?= h($g['course_level']) ?></td>
-            <td><?= h($g['schedule'] ?: '—') ?></td>
-            <td><?= h($g['location'] ?: '—') ?></td>
-            <td><?= (int)$g['total_students'] ?></td>
-
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>Curso</th>
+            <th>Nivel</th>
+            <th>Horario</th>
+            <th>Ubicación</th>
+            <th>Estudiantes</th>
             <?php if (($me['role'] ?? '') === 'admin'): ?>
-              <td><?= h($g['teacher_name']) ?></td>
+              <th>Docente</th>
             <?php endif; ?>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($groups as $g): ?>
+            <tr>
+              <td><b><?= h($g['group_code']) ?></b></td>
+              <td><?= h($g['name']) ?></td>
+              <td><?= h(courseLabel($g['course_type'])) ?></td>
+              <td><?= h(levelLabel($g['course_level'])) ?></td>
+              <td><?= h($g['schedule'] ?: '—') ?></td>
+              <td><?= h($g['location'] ?: '—') ?></td>
+              <td><?= (int)$g['total_students'] ?></td>
 
-            <td>
-              <span class="pill <?= h($g['status']) ?>">
-                <?= h($g['status']) ?>
-              </span>
-            </td>
-
-            <td>
-              <a class="btnS" href="group_students.php?id=<?= (int)$g['id'] ?>">Estudiantes</a>
-
-              <?php if (($g['status'] ?? '') === 'activo'): ?>
-                <a class="btnS" href="attendance.php?group_id=<?= (int)$g['id'] ?>">Asistencia</a>
-
-                <form class="inline" method="post" action="group_finalize.php" onsubmit="return confirm('¿Seguro que deseas finalizar este grupo?');">
-                  <input type="hidden" name="id" value="<?= (int)$g['id'] ?>">
-                  <button class="btnDanger" type="submit">Finalizar</button>
-                </form>
-              <?php else: ?>
-                <span class="btnMuted">Grupo cerrado</span>
+              <?php if (($me['role'] ?? '') === 'admin'): ?>
+                <td><?= h($g['teacher_name']) ?></td>
               <?php endif; ?>
-            </td>
-          </tr>
-        <?php endforeach; ?>
 
-        <?php if (!$groups): ?>
-          <tr>
-            <td colspan="<?= (($me['role'] ?? '') === 'admin') ? 10 : 9 ?>" class="muted">
-              No hay grupos todavía.
-            </td>
-          </tr>
-        <?php endif; ?>
-      </tbody>
-    </table>
+              <td>
+                <span class="pill <?= h($g['status']) ?>">
+                  <?= h($g['status']) ?>
+                </span>
+              </td>
+
+              <td>
+                <a class="btnS" href="group_profile.php?id=<?= (int)$g['id'] ?>">Ver grupo</a>
+                <a class="btnS" href="grades.php?group_id=<?= (int)$g['id'] ?>">Notas</a>
+                <a class="btnS" href="group_report.php?id=<?= (int)$g['id'] ?>">Reporte</a>
+
+                <?php if (($g['status'] ?? '') === 'activo'): ?>
+                  <a class="btnS" href="attendance.php?group_id=<?= (int)$g['id'] ?>">Asistencia</a>
+
+                  <form class="inline" method="post" action="group_finalize.php" onsubmit="return confirm('¿Seguro que deseas finalizar este grupo?');">
+                    <input type="hidden" name="id" value="<?= (int)$g['id'] ?>">
+                    <button class="btnDanger" type="submit">Finalizar</button>
+                  </form>
+                <?php else: ?>
+                  <span class="btnMuted">Grupo cerrado</span>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+
+          <?php if (!$groups): ?>
+            <tr>
+              <td colspan="<?= (($me['role'] ?? '') === 'admin') ? 10 : 9 ?>" class="muted">
+                No hay grupos todavía.
+              </td>
+            </tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
   </section>
 </main>
 
@@ -320,7 +345,5 @@ function toggleSidebar() {
   }
 }
 </script>
-</div>
-</div>
 </body>
 </html>

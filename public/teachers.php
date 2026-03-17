@@ -242,6 +242,7 @@ function h($v){
                    onclick="return confirm('¿Restablecer contraseña de este docente?');">
                   Restablecer contraseña
                 </a>
+                <a class="btnS" href="teacher_profile.php?id=<?= (int)$t['id'] ?>">Ver perfil</a>
               </div>
             </td>
           </tr>

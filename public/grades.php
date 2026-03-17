@@ -18,7 +18,6 @@ function normalizeGrade($value){
   $num = (float)$value;
 
   if ($num < 0) $num = 0;
-  if ($num > 20) $num = 20;
 
   return round($num, 2);
 }
@@ -81,6 +80,8 @@ $groups = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // Traer grupo seleccionado
 // =====================================================
 $group = null;
+$isFinalized = false;
+
 if ($groupId > 0) {
   $stmt = $pdo->prepare("
     SELECT g.*, u.name AS teacher_name
@@ -101,12 +102,18 @@ if ($groupId > 0) {
     http_response_code(403);
     exit("Acceso denegado");
   }
+
+  $isFinalized = (($group['status'] ?? '') === 'finalizado');
 }
 
 // =====================================================
 // Guardar notas
 // =====================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $group) {
+  if ($isFinalized) {
+    exit("Este grupo ya fue finalizado y no admite cambios en las notas.");
+  }
+
   $grades = $_POST['grades'] ?? [];
 
   $selExisting = $pdo->prepare("
@@ -215,236 +222,40 @@ function levelLabel($l){
   <title>Notas</title>
   <link rel="stylesheet" href="/docentes/assets/css/app.css">
   <style>
-    .container{
-      padding:26px;
-      max-width:1480px;
-      width:100%;
-      margin:0 auto;
-    }
-
-    .panel{
-      background:linear-gradient(180deg,var(--card2),var(--card));
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      padding:18px;
-      box-shadow:var(--shadow);
-    }
-
-    .hero{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:12px;
-      flex-wrap:wrap;
-    }
-
-    .muted{
-      color:var(--muted);
-    }
-
-    .filters{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:end;
-      margin-top:14px;
-    }
-
-    .filters .field{
-      margin-top:0;
-      min-width:260px;
-    }
-
-    .ok-msg{
-      margin-top:14px;
-      padding:12px 14px;
-      border-radius:12px;
-      background:rgba(47,191,113,.10);
-      border:1px solid rgba(47,191,113,.35);
-      color:var(--green);
-      font-weight:700;
-    }
-
-    .group-info{
-      margin-top:14px;
-      padding:14px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:12px;
-    }
-
-    .group-info .k{
-      font-size:12px;
-      color:var(--muted);
-      margin-bottom:4px;
-    }
-
-    .group-info .v{
-      font-weight:800;
-      color:#e5e7eb;
-    }
-
-    .table-wrap{
-      overflow-x:auto;
-      margin-top:14px;
-    }
-
-    table{
-      width:100%;
-      min-width:1050px;
-      border-collapse:collapse;
-    }
-
-    th, td{
-      padding:12px;
-      border-bottom:1px solid var(--line);
-      text-align:left;
-      font-size:13px;
-      vertical-align:middle;
-    }
-
-    th{
-      color:var(--muted);
-      font-weight:700;
-      background:rgba(255,255,255,.04);
-      white-space:nowrap;
-    }
-
-    tr:hover{
-      background:rgba(255,255,255,.04);
-    }
-
-    .student-name{
-      font-weight:800;
-      color:#e5e7eb;
-    }
-
-    .small{
-      font-size:12px;
-      color:var(--muted);
-      margin-top:4px;
-    }
-
-    .grade-input{
-      width:90px;
-      padding:10px 12px;
-      border-radius:10px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.05);
-      color:#fff;
-      outline:none;
-    }
-
-    .grade-input:focus{
-      border-color:rgba(47,191,113,.45);
-      box-shadow:0 0 0 3px rgba(47,191,113,.10);
-    }
-
-    .final-box{
-      display:inline-block;
-      min-width:90px;
-      padding:10px 12px;
-      border-radius:10px;
-      border:1px solid rgba(47,191,113,.35);
-      background:rgba(47,191,113,.10);
-      color:var(--green);
-      font-weight:800;
-      text-align:center;
-    }
-
-    .status-pill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-width:110px;
-      padding:8px 10px;
-      border-radius:999px;
-      font-size:12px;
-      font-weight:800;
-      text-transform:capitalize;
-      border:1px solid var(--line);
-    }
-
-    .status-pill.aprobado{
-      color:#22c55e;
-      border-color:rgba(34,197,94,.35);
-      background:rgba(34,197,94,.10);
-    }
-
-    .status-pill.desaprobado{
-      color:#ef4444;
-      border-color:rgba(239,68,68,.35);
-      background:rgba(239,68,68,.10);
-    }
-
-    .status-pill.pendiente{
-      color:#f59e0b;
-      border-color:rgba(245,158,11,.35);
-      background:rgba(245,158,11,.10);
-    }
-
-    .actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:16px;
-    }
-
-    .btnS{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:10px 14px;
-      border-radius:14px;
-      border:1px solid rgba(47,191,113,.35);
-      background:rgba(47,191,113,.10);
-      color:var(--green);
-      font-weight:800;
-      text-decoration:none;
-      cursor:pointer;
-    }
-
-    .btnG{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:10px 14px;
-      border-radius:14px;
-      border:1px solid rgba(148,163,184,.25);
-      background:rgba(255,255,255,.05);
-      color:#cbd5e1;
-      font-weight:800;
-      text-decoration:none;
-      cursor:pointer;
-    }
-
-    .note-help{
-      margin-top:10px;
-      color:var(--muted);
-      font-size:12px;
-    }
-
-    .empty{
-      padding:20px;
-      text-align:center;
-      color:var(--muted);
-      font-weight:700;
-    }
-
-    @media(max-width:960px){
-      .group-info{
-        grid-template-columns:1fr 1fr;
-      }
-    }
-
-    @media(max-width:640px){
-      .group-info{
-        grid-template-columns:1fr;
-      }
-    }
+    .container{padding:26px;max-width:1480px;width:100%;margin:0 auto;}
+    .panel{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);}
+    .hero{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+    .muted{color:var(--muted);}
+    .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:14px;}
+    .filters .field{margin-top:0;min-width:260px;}
+    .ok-msg{margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(47,191,113,.10);border:1px solid rgba(47,191,113,.35);color:var(--green);font-weight:700;}
+    .warn-msg{margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.35);color:#f59e0b;font-weight:700;}
+    .group-info{margin-top:14px;padding:14px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.04);display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    .group-info .k{font-size:12px;color:var(--muted);margin-bottom:4px;}
+    .group-info .v{font-weight:800;color:#e5e7eb;}
+    .table-wrap{overflow-x:auto;margin-top:14px;}
+    table{width:100%;min-width:1050px;border-collapse:collapse;}
+    th, td{padding:12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;vertical-align:middle;}
+    th{color:var(--muted);font-weight:700;background:rgba(255,255,255,.04);white-space:nowrap;}
+    tr:hover{background:rgba(255,255,255,.04);}
+    .student-name{font-weight:800;color:#e5e7eb;}
+    .small{font-size:12px;color:var(--muted);margin-top:4px;}
+    .grade-input{width:90px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:#fff;outline:none;}
+    .grade-input:focus{border-color:rgba(47,191,113,.45);box-shadow:0 0 0 3px rgba(47,191,113,.10);}
+    .grade-input[disabled]{opacity:.55;cursor:not-allowed;}
+    .final-box{display:inline-block;min-width:90px;padding:10px 12px;border-radius:10px;border:1px solid rgba(47,191,113,.35);background:rgba(47,191,113,.10);color:var(--green);font-weight:800;text-align:center;}
+    .status-pill{display:inline-flex;align-items:center;justify-content:center;min-width:110px;padding:8px 10px;border-radius:999px;font-size:12px;font-weight:800;text-transform:capitalize;border:1px solid var(--line);}
+    .status-pill.aprobado{color:#22c55e;border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.10);}
+    .status-pill.desaprobado{color:#ef4444;border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.10);}
+    .status-pill.pendiente{color:#f59e0b;border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.10);}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}
+    .btnS{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:14px;border:1px solid rgba(47,191,113,.35);background:rgba(47,191,113,.10);color:var(--green);font-weight:800;text-decoration:none;cursor:pointer;}
+    .btnG{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:14px;border:1px solid rgba(148,163,184,.25);background:rgba(255,255,255,.05);color:#cbd5e1;font-weight:800;text-decoration:none;cursor:pointer;}
+    .btnMuted{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:14px;border:1px solid rgba(148,163,184,.25);background:rgba(255,255,255,.04);color:#94a3b8;font-weight:800;text-decoration:none;cursor:not-allowed;}
+    .note-help{margin-top:10px;color:var(--muted);font-size:12px;}
+    .empty{padding:20px;text-align:center;color:var(--muted);font-weight:700;}
+    @media(max-width:960px){.group-info{grid-template-columns:1fr 1fr;}}
+    @media(max-width:640px){.group-info{grid-template-columns:1fr;}}
   </style>
 </head>
 <body>
@@ -456,7 +267,7 @@ function levelLabel($l){
       <div>
         <h2 style="margin:0 0 6px;">Notas</h2>
         <p style="margin:0;color:var(--muted);">
-          Seleccioná un grupo y registrá las notas de las 5 pruebas. Cada prueba vale 20 puntos y la nota final es acumulada sobre 100.
+          Seleccioná un grupo y registrá las notas de hasta 5 evaluaciones. Podés dejar casillas vacías si el grupo tuvo menos evaluaciones.
         </p>
       </div>
     </div>
@@ -477,6 +288,10 @@ function levelLabel($l){
 
     <?php if ($saved): ?>
       <div class="ok-msg">Notas guardadas correctamente.</div>
+    <?php endif; ?>
+
+    <?php if ($group && $isFinalized): ?>
+      <div class="warn-msg">Este grupo ya fue finalizado. Las notas se muestran solo en modo lectura.</div>
     <?php endif; ?>
 
     <?php if ($group): ?>
@@ -500,7 +315,7 @@ function levelLabel($l){
       </div>
 
       <div class="note-help">
-        Ingresá valores de 0 a 20 por cada prueba.
+        Ingresá notas iguales o mayores a 0. Podés dejar casillas vacías si no aplica esa evaluación.
       </div>
 
       <form method="post">
@@ -531,65 +346,11 @@ function levelLabel($l){
                       </div>
                     </td>
 
-                    <td>
-                      <input
-                        class="grade-input"
-                        type="number"
-                        name="grades[<?= (int)$s['id'] ?>][exam1]"
-                        min="0"
-                        max="20"
-                        step="0.01"
-                        value="<?= h($s['exam1'] ?? '') ?>"
-                      >
-                    </td>
-
-                    <td>
-                      <input
-                        class="grade-input"
-                        type="number"
-                        name="grades[<?= (int)$s['id'] ?>][exam2]"
-                        min="0"
-                        max="20"
-                        step="0.01"
-                        value="<?= h($s['exam2'] ?? '') ?>"
-                      >
-                    </td>
-
-                    <td>
-                      <input
-                        class="grade-input"
-                        type="number"
-                        name="grades[<?= (int)$s['id'] ?>][exam3]"
-                        min="0"
-                        max="20"
-                        step="0.01"
-                        value="<?= h($s['exam3'] ?? '') ?>"
-                      >
-                    </td>
-
-                    <td>
-                      <input
-                        class="grade-input"
-                        type="number"
-                        name="grades[<?= (int)$s['id'] ?>][exam4]"
-                        min="0"
-                        max="20"
-                        step="0.01"
-                        value="<?= h($s['exam4'] ?? '') ?>"
-                      >
-                    </td>
-
-                    <td>
-                      <input
-                        class="grade-input"
-                        type="number"
-                        name="grades[<?= (int)$s['id'] ?>][exam5]"
-                        min="0"
-                        max="20"
-                        step="0.01"
-                        value="<?= h($s['exam5'] ?? '') ?>"
-                      >
-                    </td>
+                    <td><input class="grade-input" type="number" name="grades[<?= (int)$s['id'] ?>][exam1]" min="0" step="0.01" value="<?= h($s['exam1'] ?? '') ?>" <?= $isFinalized ? 'disabled' : '' ?>></td>
+                    <td><input class="grade-input" type="number" name="grades[<?= (int)$s['id'] ?>][exam2]" min="0" step="0.01" value="<?= h($s['exam2'] ?? '') ?>" <?= $isFinalized ? 'disabled' : '' ?>></td>
+                    <td><input class="grade-input" type="number" name="grades[<?= (int)$s['id'] ?>][exam3]" min="0" step="0.01" value="<?= h($s['exam3'] ?? '') ?>" <?= $isFinalized ? 'disabled' : '' ?>></td>
+                    <td><input class="grade-input" type="number" name="grades[<?= (int)$s['id'] ?>][exam4]" min="0" step="0.01" value="<?= h($s['exam4'] ?? '') ?>" <?= $isFinalized ? 'disabled' : '' ?>></td>
+                    <td><input class="grade-input" type="number" name="grades[<?= (int)$s['id'] ?>][exam5]" min="0" step="0.01" value="<?= h($s['exam5'] ?? '') ?>" <?= $isFinalized ? 'disabled' : '' ?>></td>
 
                     <td>
                       <span class="final-box"><?= h($s['final_grade'] ?? '—') ?></span>
@@ -613,7 +374,11 @@ function levelLabel($l){
 
         <?php if ($students): ?>
           <div class="actions">
-            <button class="btn" type="submit">Guardar notas</button>
+            <?php if (!$isFinalized): ?>
+              <button class="btn" type="submit">Guardar notas</button>
+            <?php else: ?>
+              <span class="btnMuted">Grupo finalizado</span>
+            <?php endif; ?>
             <a class="btnG" href="groups.php">← Volver a grupos</a>
           </div>
         <?php endif; ?>
