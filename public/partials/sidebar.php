@@ -248,7 +248,7 @@ function isActive($file, $current) {
           <span class="nav-label">Estudiantes</span>
         </a>
 
-        <a class="side-link <?= isActive('groups.php', $current) || isActive('group_new.php', $current) || isActive('group_students.php', $current) ?>" href="groups.php">
+        <a class="side-link <?= isActive('groups.php', $current) || isActive('group_new.php', $current) || isActive('group_students.php', $current) || isActive('group_profile.php', $current) || isActive('group_report.php', $current) ?>" href="groups.php">
           <span class="nav-icon">🧩</span>
           <span class="nav-label">Grupos</span>
         </a>
@@ -259,12 +259,12 @@ function isActive($file, $current) {
         </a>
 
         <a class="side-link <?= isActive('grades.php', $current) ?>" href="grades.php">
-  <span class="nav-icon">📊</span>
-  <span class="nav-label">Notas</span>
-</a>
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Notas</span>
+        </a>
 
         <?php if (($me['role'] ?? '') === 'admin'): ?>
-          <a class="side-link <?= isActive('teachers.php', $current) || isActive('teacher_new.php', $current) || isActive('teacher_reset.php', $current) ?>" href="teachers.php">
+          <a class="side-link <?= isActive('teachers.php', $current) || isActive('teacher_new.php', $current) || isActive('teacher_reset.php', $current) || isActive('teacher_profile.php', $current) ?>" href="teachers.php">
             <span class="nav-icon">👨‍🏫</span>
             <span class="nav-label">Docentes</span>
           </a>
@@ -274,6 +274,18 @@ function isActive($file, $current) {
           <span class="nav-icon">🔒</span>
           <span class="nav-label">Contraseña</span>
         </a>
+
+        <a class="side-link <?= isActive('activity_logs.php', $current) ?>" href="activity_logs.php">
+        <span class="nav-icon">📜</span>
+        <span class="nav-label">Auditoría</span>
+        </a>
+        
+        <?php if (($me['role'] ?? '') === 'admin'): ?>
+          <a class="side-link <?= isActive('students_import.php', $current) ?>" href="students_import.php">
+            <span class="nav-icon">📥</span>
+            <span class="nav-label">Importar CSV</span>
+          </a>
+        <?php endif; ?>
 
         <a class="side-link <?= isActive('help.php', $current) ?>" href="help.php">
           <span class="nav-icon">📘</span>

@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/../app/config/db.php';
 require __DIR__ . '/../app/middleware/auth.php';
+require __DIR__ . '/../app/helpers/csrf.php';
+require __DIR__ . '/../app/helpers/log.php';
 
 requireLogin();
 requirePasswordChangeIfNeeded();
@@ -16,7 +18,6 @@ function normalizeGrade($value){
   if ($value === '') return null;
 
   $num = (float)$value;
-
   if ($num < 0) $num = 0;
 
   return round($num, 2);
@@ -39,6 +40,16 @@ function calcFinalGrade($grades){
 function calcStudentStatus($final){
   if ($final === null) return 'pendiente';
   return $final >= 60 ? 'aprobado' : 'desaprobado';
+}
+
+function courseLabel($t){
+  return $t === 'catacion' ? 'Catación' : 'Barismo';
+}
+
+function levelLabel($l){
+  if ($l === 'avanzado') return 'Avanzado';
+  if ($l === 'intensivo') return 'Intensivo';
+  return 'Básico';
 }
 
 $groupId = (int)($_GET['group_id'] ?? $_POST['group_id'] ?? 0);
@@ -110,6 +121,8 @@ if ($groupId > 0) {
 // Guardar notas
 // =====================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $group) {
+  verify_csrf_or_die();
+
   if ($isFinalized) {
     exit("Este grupo ya fue finalizado y no admite cambios en las notas.");
   }
@@ -125,54 +138,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $group) {
 
   $insGrade = $pdo->prepare("
     INSERT INTO student_grades
-    (group_id, student_id, exam1, exam2, exam3, exam4, exam5, final_grade)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    (group_id, student_id, exam1, exam2, exam3, exam4, exam5, final_grade, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   ");
 
   $updGrade = $pdo->prepare("
     UPDATE student_grades
-    SET exam1=?, exam2=?, exam3=?, exam4=?, exam5=?, final_grade=?
-    WHERE group_id=? AND student_id=?
+    SET exam1 = ?, exam2 = ?, exam3 = ?, exam4 = ?, exam5 = ?, final_grade = ?, status = ?
+    WHERE group_id = ? AND student_id = ?
   ");
 
-  $updStudent = $pdo->prepare("
-    UPDATE students
-    SET final_grade=?, status=?
-    WHERE id=?
-  ");
+  try {
+    $pdo->beginTransaction();
 
-  foreach ($grades as $studentId => $g) {
-    $studentId = (int)$studentId;
+    $updatedStudentsCount = 0;
 
-    $exam1 = normalizeGrade($g['exam1'] ?? null);
-    $exam2 = normalizeGrade($g['exam2'] ?? null);
-    $exam3 = normalizeGrade($g['exam3'] ?? null);
-    $exam4 = normalizeGrade($g['exam4'] ?? null);
-    $exam5 = normalizeGrade($g['exam5'] ?? null);
+    foreach ($grades as $studentId => $g) {
+      $studentId = (int)$studentId;
+      if ($studentId <= 0) {
+        continue;
+      }
 
-    $final = calcFinalGrade([$exam1, $exam2, $exam3, $exam4, $exam5]);
-    $status = calcStudentStatus($final);
+      $exam1 = normalizeGrade($g['exam1'] ?? null);
+      $exam2 = normalizeGrade($g['exam2'] ?? null);
+      $exam3 = normalizeGrade($g['exam3'] ?? null);
+      $exam4 = normalizeGrade($g['exam4'] ?? null);
+      $exam5 = normalizeGrade($g['exam5'] ?? null);
 
-    $selExisting->execute([$groupId, $studentId]);
-    $exists = $selExisting->fetchColumn();
+      $final = calcFinalGrade([$exam1, $exam2, $exam3, $exam4, $exam5]);
+      $status = calcStudentStatus($final);
 
-    if ($exists) {
-      $updGrade->execute([
-        $exam1, $exam2, $exam3, $exam4, $exam5, $final,
-        $groupId, $studentId
-      ]);
-    } else {
-      $insGrade->execute([
-        $groupId, $studentId,
-        $exam1, $exam2, $exam3, $exam4, $exam5, $final
-      ]);
+      $selExisting->execute([$groupId, $studentId]);
+      $exists = $selExisting->fetchColumn();
+
+      if ($exists) {
+        $updGrade->execute([
+          $exam1, $exam2, $exam3, $exam4, $exam5, $final, $status,
+          $groupId, $studentId
+        ]);
+      } else {
+        $insGrade->execute([
+          $groupId, $studentId,
+          $exam1, $exam2, $exam3, $exam4, $exam5, $final, $status
+        ]);
+      }
+
+      $updatedStudentsCount++;
     }
 
-    $updStudent->execute([$final, $status, $studentId]);
-  }
+    $pdo->commit();
 
-  header("Location: grades.php?group_id={$groupId}&saved=1");
-  exit;
+    log_activity(
+      $pdo,
+      (int)$_SESSION['user']['id'],
+      'grades_updated',
+      "Se guardaron notas del grupo {$group['group_code']} ({$group['name']}) con ID {$groupId}. Estudiantes actualizados: {$updatedStudentsCount}"
+    );
+
+    header("Location: grades.php?group_id={$groupId}&saved=1");
+    exit;
+
+  } catch (Throwable $e) {
+    if ($pdo->inTransaction()) {
+      $pdo->rollBack();
+    }
+    exit("Ocurrió un error al guardar las notas.");
+  }
 }
 
 // =====================================================
@@ -185,16 +216,19 @@ if ($group) {
       s.id,
       s.full_name,
       s.student_code,
-      s.school,
-      s.status,
+      sc.name AS school_name,
       sg.exam1,
       sg.exam2,
       sg.exam3,
       sg.exam4,
       sg.exam5,
-      sg.final_grade
+      sg.final_grade,
+      sg.status AS group_status
     FROM group_students gs
-    JOIN students s ON s.id = gs.student_id
+    JOIN students s
+      ON s.id = gs.student_id
+    LEFT JOIN schools sc
+      ON sc.id = s.school_id
     LEFT JOIN student_grades sg
       ON sg.student_id = s.id
      AND sg.group_id = gs.group_id
@@ -203,16 +237,6 @@ if ($group) {
   ");
   $stmt->execute([$groupId]);
   $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-function courseLabel($t){
-  return $t === 'catacion' ? 'Catación' : 'Barismo';
-}
-
-function levelLabel($l){
-  if ($l === 'avanzado') return 'Avanzado';
-  if ($l === 'intensivo') return 'Intensivo';
-  return 'Básico';
 }
 ?>
 <!doctype html>
@@ -319,6 +343,7 @@ function levelLabel($l){
       </div>
 
       <form method="post">
+        <?= csrf_input(); ?>
         <input type="hidden" name="group_id" value="<?= (int)$groupId ?>">
 
         <div class="table-wrap">
@@ -338,11 +363,12 @@ function levelLabel($l){
             <tbody>
               <?php if ($students): ?>
                 <?php foreach ($students as $s): ?>
+                  <?php $displayStatus = $s['group_status'] ?: 'pendiente'; ?>
                   <tr>
                     <td>
                       <div class="student-name"><?= h($s['full_name']) ?></div>
                       <div class="small">
-                        <?= h($s['student_code'] ?: '—') ?> • <?= h($s['school'] ?: '—') ?>
+                        <?= h($s['student_code'] ?: '—') ?> • <?= h($s['school_name'] ?: '—') ?>
                       </div>
                     </td>
 
@@ -357,8 +383,8 @@ function levelLabel($l){
                     </td>
 
                     <td>
-                      <span class="status-pill <?= h($s['status'] ?: 'pendiente') ?>">
-                        <?= h($s['status'] ?: 'pendiente') ?>
+                      <span class="status-pill <?= h($displayStatus) ?>">
+                        <?= h($displayStatus) ?>
                       </span>
                     </td>
                   </tr>

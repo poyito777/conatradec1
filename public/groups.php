@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/../app/config/db.php';
 require __DIR__ . '/../app/middleware/auth.php';
+require __DIR__ . '/../app/helpers/csrf.php';
+
 
 requireLogin();
 requirePasswordChangeIfNeeded();
@@ -30,20 +32,44 @@ if (($me['role'] ?? '') === 'teacher') {
 }
 
 $sql = "
-SELECT 
-    g.*,
+SELECT
+    g.id,
+    g.group_code,
+    g.name,
+    g.course_type,
+    g.course_level,
+    g.schedule,
+    g.location,
+    g.status,
+    g.teacher_id,
+    g.created_at,
     u.name AS teacher_name,
-    (
-        SELECT COUNT(*) 
-        FROM group_students gs 
-        WHERE gs.group_id = g.id
-    ) AS total_students
+    COUNT(gs.student_id) AS total_students
 FROM groups_table g
-JOIN users u ON u.id = g.teacher_id
+JOIN users u
+    ON u.id = g.teacher_id
+LEFT JOIN group_students gs
+    ON gs.group_id = g.id
 $where
-ORDER BY 
-  CASE WHEN g.status = 'activo' THEN 0 ELSE 1 END,
-  g.created_at DESC
+GROUP BY
+    g.id,
+    g.group_code,
+    g.name,
+    g.course_type,
+    g.course_level,
+    g.schedule,
+    g.location,
+    g.status,
+    g.teacher_id,
+    g.created_at,
+    u.name
+ORDER BY
+    CASE
+      WHEN g.status = 'activo' THEN 0
+      WHEN g.status = 'finalizado' THEN 1
+      ELSE 2
+    END,
+    g.created_at DESC
 ";
 
 $stmt = $pdo->prepare($sql);
@@ -51,6 +77,17 @@ $stmt->execute($params);
 $groups = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $finalized = isset($_GET['finalized']) && $_GET['finalized'] == '1';
+
+$countActive = 0;
+$countDone = 0;
+$countCancelled = 0;
+
+foreach ($groups as $g) {
+    $status = (string)($g['status'] ?? '');
+    if ($status === 'activo') $countActive++;
+    elseif ($status === 'finalizado') $countDone++;
+    elseif ($status === 'cancelado') $countCancelled++;
+}
 ?>
 <!doctype html>
 <html lang="es">
@@ -138,6 +175,7 @@ $finalized = isset($_GET['finalized']) && $_GET['finalized'] == '1';
       border-radius:999px;
       border:1px solid var(--line);
       font-size:12px;
+      text-transform:capitalize;
     }
 
     .activo{
@@ -234,26 +272,9 @@ $finalized = isset($_GET['finalized']) && $_GET['finalized'] == '1';
 
         <div class="stats">
           <div class="stat">Total grupos: <?= count($groups) ?></div>
-          <div class="stat">
-            Activos:
-            <?php
-              $countActive = 0;
-              foreach ($groups as $g) {
-                if (($g['status'] ?? '') === 'activo') $countActive++;
-              }
-              echo $countActive;
-            ?>
-          </div>
-          <div class="stat">
-            Finalizados:
-            <?php
-              $countDone = 0;
-              foreach ($groups as $g) {
-                if (($g['status'] ?? '') === 'finalizado') $countDone++;
-              }
-              echo $countDone;
-            ?>
-          </div>
+          <div class="stat">Activos: <?= $countActive ?></div>
+          <div class="stat">Finalizados: <?= $countDone ?></div>
+          <div class="stat">Cancelados: <?= $countCancelled ?></div>
         </div>
       </div>
 
@@ -304,6 +325,7 @@ $finalized = isset($_GET['finalized']) && $_GET['finalized'] == '1';
               </td>
 
               <td>
+                <a class="btnS" href="group_students.php?id=<?= (int)$g['id'] ?>">Ingresar Estudiantes</a>
                 <a class="btnS" href="group_profile.php?id=<?= (int)$g['id'] ?>">Ver grupo</a>
                 <a class="btnS" href="grades.php?group_id=<?= (int)$g['id'] ?>">Notas</a>
                 <a class="btnS" href="group_report.php?id=<?= (int)$g['id'] ?>">Reporte</a>
@@ -312,6 +334,7 @@ $finalized = isset($_GET['finalized']) && $_GET['finalized'] == '1';
                   <a class="btnS" href="attendance.php?group_id=<?= (int)$g['id'] ?>">Asistencia</a>
 
                   <form class="inline" method="post" action="group_finalize.php" onsubmit="return confirm('¿Seguro que deseas finalizar este grupo?');">
+                    <?php echo csrf_input(); ?>
                     <input type="hidden" name="id" value="<?= (int)$g['id'] ?>">
                     <button class="btnDanger" type="submit">Finalizar</button>
                   </form>

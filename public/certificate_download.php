@@ -5,31 +5,55 @@ function h($v){
   return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 }
 
-$code = trim((string)($_GET['code'] ?? ''));
+$studentId = (int)($_GET['student_id'] ?? 0);
+$groupId = (int)($_GET['group_id'] ?? 0);
 
-if ($code === '') {
+if ($studentId <= 0 || $groupId <= 0) {
   http_response_code(400);
-  exit('Falta el código del estudiante.');
+  exit('Faltan parámetros del certificado.');
 }
 
 $stmt = $pdo->prepare("
   SELECT
-    s.*,
+    s.id,
+    s.full_name,
+    s.student_code,
+    sc.name AS school_name,
+    g.id AS group_id,
+    g.group_code,
+    g.name AS group_name,
+    g.course_type,
+    g.course_level,
+    g.start_date,
+    g.end_date,
+    sg.final_grade,
+    sg.status AS academic_status,
     u.name AS teacher_name
   FROM students s
-  JOIN users u ON u.id = s.teacher_id
-  WHERE s.student_code = ?
+  JOIN group_students gs
+    ON gs.student_id = s.id
+  JOIN groups_table g
+    ON g.id = gs.group_id
+  JOIN student_grades sg
+    ON sg.group_id = gs.group_id
+   AND sg.student_id = gs.student_id
+  JOIN users u
+    ON u.id = g.teacher_id
+  LEFT JOIN schools sc
+    ON sc.id = s.school_id
+  WHERE s.id = ?
+    AND g.id = ?
   LIMIT 1
 ");
-$stmt->execute([$code]);
+$stmt->execute([$studentId, $groupId]);
 $student = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$student) {
   http_response_code(404);
-  exit('No se encontró un estudiante con ese código.');
+  exit('No se encontró el certificado solicitado.');
 }
 
-if ($student['final_grade'] === null || (float)$student['final_grade'] < 60) {
+if (($student['academic_status'] ?? '') !== 'aprobado' || $student['final_grade'] === null || (float)$student['final_grade'] < 60) {
   http_response_code(403);
   exit('Este certificado aún no está disponible.');
 }
@@ -44,17 +68,14 @@ function levelLabel($l){
   return 'Básico';
 }
 
-$today = date('d/m/Y');
-$certificateNumber = 'CERT-' . date('Y') . '-' . str_pad((string)$student['id'], 5, '0', STR_PAD_LEFT);
+$certificateNumber = 'CERT-' . date('Y') . '-' . str_pad((string)$student['student_id'] ?? (string)$student['id'], 5, '0', STR_PAD_LEFT) . '-' . str_pad((string)$groupId, 4, '0', STR_PAD_LEFT);
 
 $logoGob = '/docentes/assets/images/grun.png';
 $logoSnpcc = '/docentes/assets/images/SNPCC.png';
 $logoCona = '/docentes/assets/images/conatradec.png';
-
-/* firma digital opcional */
 $signatureImage = '/docentes/assets/images/firma.png';
 
-$schoolName = trim((string)($student['school'] ?? ''));
+$schoolName = trim((string)($student['school_name'] ?? ''));
 if ($schoolName === '') {
   $schoolName = 'Escuela de Catación y Barismo CONATRADEC';
 }
@@ -74,9 +95,7 @@ if ($schoolName === '') {
       --line:#e7d9b0;
     }
 
-    *{
-      box-sizing:border-box;
-    }
+    *{ box-sizing:border-box; }
 
     body{
       margin:0;
@@ -144,9 +163,7 @@ if ($schoolName === '') {
       border-bottom:1px solid var(--line);
     }
 
-    .top-left,
-    .top-center,
-    .top-right{
+    .top-left,.top-center,.top-right{
       display:flex;
       align-items:center;
     }
@@ -155,23 +172,9 @@ if ($schoolName === '') {
     .top-center{ justify-content:center; }
     .top-right{ justify-content:flex-end; }
 
-    .logo-gob{
-      max-width:220px;
-      max-height:74px;
-      object-fit:contain;
-    }
-
-    .logo-snpcc{
-      max-width:180px;
-      max-height:70px;
-      object-fit:contain;
-    }
-
-    .logo-cona{
-      max-width:220px;
-      max-height:74px;
-      object-fit:contain;
-    }
+    .logo-gob{ max-width:220px; max-height:74px; object-fit:contain; }
+    .logo-snpcc{ max-width:180px; max-height:70px; object-fit:contain; }
+    .logo-cona{ max-width:220px; max-height:74px; object-fit:contain; }
 
     .cert-number{
       text-align:right;
@@ -223,27 +226,11 @@ if ($schoolName === '') {
       padding:18px 10px;
     }
 
-    .footer{
-      margin-top:42px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      gap:26px;
-      text-align:center;
-    }
-
-    .date-box{
-      font-family:Arial,sans-serif;
-      color:var(--muted);
-      font-size:14px;
-    }
-
     .signature{
       width:320px;
       text-align:center;
       font-family:Arial,sans-serif;
-      margin:0 auto;
+      margin:42px auto 0;
     }
 
     .signature-image-wrap{
@@ -269,37 +256,9 @@ if ($schoolName === '') {
       font-size:13px;
     }
 
-    .seal{
-      position:absolute;
-      right:38px;
-      bottom:28px;
-      width:120px;
-      height:120px;
-      border:3px solid rgba(184,137,31,.45);
-      border-radius:50%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      font-size:13px;
-      color:rgba(122,90,18,.85);
-      font-weight:700;
-      transform:rotate(-10deg);
-      opacity:.9;
-      background:rgba(246,236,210,.45);
-      font-family:Arial,sans-serif;
-    }
-
     @media print{
-      body{
-        background:#fff;
-        padding:0;
-      }
-
-      .actions{
-        display:none !important;
-      }
-
+      body{ background:#fff; padding:0; }
+      .actions{ display:none !important; }
       .page{
         box-shadow:none;
         max-width:none;
@@ -307,10 +266,7 @@ if ($schoolName === '') {
         min-height:auto;
         border:8px solid var(--gold-soft);
       }
-
-      .frame{
-        min-height:auto;
-      }
+      .frame{ min-height:auto; }
     }
   </style>
 </head>
@@ -341,6 +297,7 @@ if ($schoolName === '') {
     <div class="cert-number">
       <div><b>N.º de certificado:</b> <?= h($certificateNumber) ?></div>
       <div><b>Código estudiante:</b> <?= h($student['student_code']) ?></div>
+      <div><b>Grupo:</b> <?= h($student['group_code']) ?></div>
     </div>
 
     <div class="title">
@@ -359,20 +316,20 @@ if ($schoolName === '') {
         Por haber aprobado el Curso de
         <b><?= h(courseLabel($student['course_type'])) ?></b>,
         del nivel <b><?= h(levelLabel($student['course_level'])) ?></b>,
-        logrando satisfactoriamente cumplir con el programa de formación, impartidos por los instructores de la
+        correspondiente al grupo <b><?= h($student['group_name']) ?></b>,
+        logrando satisfactoriamente cumplir con el programa de formación, impartido por los instructores de la
         <b><?= h($schoolName) ?></b>.
       </p>
     </div>
 
-      <div class="signature">
-        <div class="signature-image-wrap">
-          <img class="signature-image" src="<?= h($signatureImage) ?>" alt="Firma digital">
-        </div>
-        <div class="line"></div>
-        <div><b>Eduardo Escobar García</b></div>
-        <div>Secretario Ejecutivo</div>
-        <div><b>CONATRADEC</b></div>
+    <div class="signature">
+      <div class="signature-image-wrap">
+        <img class="signature-image" src="<?= h($signatureImage) ?>" alt="Firma digital">
       </div>
+      <div class="line"></div>
+      <div><b>Eduardo Escobar García</b></div>
+      <div>Secretario Ejecutivo</div>
+      <div><b>CONATRADEC</b></div>
     </div>
 
   </div>

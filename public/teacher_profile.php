@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/../app/config/db.php';
 require __DIR__ . '/../app/middleware/auth.php';
+require __DIR__ . '/../app/helpers/csrf.php';
 
 requireLogin();
 requirePasswordChangeIfNeeded();
@@ -23,6 +24,12 @@ function levelLabel($l){
 
 function teacherStatusClass($isActive){
   return (int)$isActive === 1 ? 'ok' : 'bad';
+}
+
+function groupStatusClass($status){
+  if ($status === 'activo') return 'ok';
+  if ($status === 'finalizado') return 'bad';
+  return 'pending';
 }
 
 $id = (int)($_GET['id'] ?? 0);
@@ -75,7 +82,6 @@ $finishedGroups = (int)($groupMetrics['finished_groups'] ?? 0);
 
 // =====================================================
 // Total de estudiantes del docente
-// (basado en students.teacher_id)
 // =====================================================
 $stmt = $pdo->prepare("
   SELECT COUNT(*)
@@ -126,7 +132,11 @@ $stmt = $pdo->prepare("
   FROM groups_table g
   WHERE g.teacher_id = ?
   ORDER BY
-    CASE WHEN g.status = 'activo' THEN 0 ELSE 1 END,
+    CASE
+      WHEN g.status = 'activo' THEN 0
+      WHEN g.status = 'finalizado' THEN 1
+      ELSE 2
+    END,
     g.created_at DESC,
     g.id DESC
 ");
@@ -347,7 +357,11 @@ $groups = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
       <div class="actions" style="margin-top:0;">
         <a class="btnG" href="teachers.php">← Volver</a>
-        <a class="btn2" href="teacher_reset.php?id=<?= (int)$t['id'] ?>">Restablecer contraseña</a>
+        <form method="post" action="teacher_reset.php" style="display:inline;">
+  <?= csrf_input() ?>
+  <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
+  <button class="btnS" type="submit">Restablecer contraseña</button>
+</form>
       </div>
     </div>
 
@@ -437,12 +451,12 @@ $groups = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <td><?= (int)$g['total_students'] ?></td>
                 <td><?= h($g['avg_grade'] !== null && $g['avg_grade'] !== '' ? $g['avg_grade'] : '—') ?></td>
                 <td>
-                  <span class="pill <?= h(statusClass($g['status'] ?? '')) ?>">
-                    <?= h($g['status']) ?>
+                  <span class="pill <?= h(groupStatusClass($g['status'] ?? '')) ?>">
+                    <?= h($g['status'] ?: '—') ?>
                   </span>
                 </td>
                 <td>
-                  <?= h($g['start_date'] ?: '—') ?>
+                  <div><?= h($g['start_date'] ?: '—') ?></div>
                   <div class="small">hasta <?= h($g['end_date'] ?: '—') ?></div>
                 </td>
                 <td>

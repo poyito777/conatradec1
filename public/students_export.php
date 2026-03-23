@@ -14,6 +14,8 @@ $course = trim((string)($_GET['course_type'] ?? ''));
 $level  = trim((string)($_GET['course_level'] ?? ''));
 $dept   = trim((string)($_GET['department'] ?? ''));
 $teacherId = (int)($_GET['teacher_id'] ?? 0);
+$municipality = trim((string)($_GET['municipality'] ?? ''));
+$organizationType = trim((string)($_GET['organization_type'] ?? ''));
 
 $where = [];
 $params = [];
@@ -29,9 +31,18 @@ if (($me['role'] ?? '') === 'teacher') {
 }
 
 if ($q !== '') {
-  $where[] = "(s.full_name LIKE ? OR s.student_code LIKE ? OR s.cedula LIKE ? OR s.phone LIKE ? OR s.school LIKE ? OR s.organization_name LIKE ? OR s.characterization LIKE ?)";
+  $where[] = "(
+    s.full_name LIKE ? OR
+    s.student_code LIKE ? OR
+    s.cedula LIKE ? OR
+    s.phone LIKE ? OR
+    sc.name LIKE ? OR
+    so.organization_name LIKE ? OR
+    so.characterization LIKE ? OR
+    s.profession LIKE ?
+  )";
   $like = "%{$q}%";
-  array_push($params, $like, $like, $like, $like, $like, $like, $like);
+  array_push($params, $like, $like, $like, $like, $like, $like, $like, $like);
 }
 
 if ($course !== '') {
@@ -45,8 +56,18 @@ if ($level !== '') {
 }
 
 if ($dept !== '') {
-  $where[] = "s.department LIKE ?";
+  $where[] = "d.name LIKE ?";
   $params[] = "%{$dept}%";
+}
+
+if ($municipality !== '') {
+  $where[] = "m.name LIKE ?";
+  $params[] = "%{$municipality}%";
+}
+
+if ($organizationType !== '') {
+  $where[] = "so.organization_type = ?";
+  $params[] = $organizationType;
 }
 
 $sqlWhere = $where ? ("WHERE " . implode(" AND ", $where)) : "";
@@ -60,25 +81,26 @@ $sql = "
     s.education_level,
     s.profession,
     s.nationality,
-    s.school,
+    sc.name AS school_name,
     s.course_type,
     s.course_level,
     s.phone,
     s.cedula,
-    s.department,
-    s.municipality,
+    d.name AS department_name,
+    m.name AS municipality_name,
     s.community,
-    s.organization_type,
-    s.organization_name,
-    s.organization_phone,
-    s.organization_location,
-    s.characterization,
-    s.trademark_registration,
-    s.course_purpose,
-    s.number_of_members,
-    s.future_projection,
+    so.organization_type,
+    so.organization_name,
+    so.organization_phone,
+    so.organization_location,
+    so.characterization,
+    so.trademark_registration,
+    sp.course_purpose,
+    so.number_of_members,
+    sp.future_projection,
     s.enrolled_at,
-    s.observations,
+    sp.observations,
+    sp.notes,
     s.final_grade,
     s.status,
     u.name  AS teacher_name,
@@ -87,6 +109,11 @@ $sql = "
     s.updated_at
   FROM students s
   JOIN users u ON u.id = s.teacher_id
+  LEFT JOIN schools sc ON sc.id = s.school_id
+  LEFT JOIN departments d ON d.id = s.department_id
+  LEFT JOIN municipalities m ON m.id = s.municipality_id
+  LEFT JOIN student_organizations so ON so.student_id = s.id
+  LEFT JOIN student_profiles sp ON sp.student_id = s.id
   $sqlWhere
   ORDER BY s.created_at DESC, s.id DESC
 ";
@@ -130,6 +157,7 @@ fputcsv($out, [
   'Proyeccion_futuro',
   'Fecha_inscripcion',
   'Observaciones',
+  'Notas_internas',
   'Nota_final',
   'Estado',
   'Docente',
@@ -147,13 +175,13 @@ while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $r['education_level'],
     $r['profession'],
     $r['nationality'],
-    $r['school'],
+    $r['school_name'],
     $r['course_type'],
     $r['course_level'],
     $r['phone'],
     $r['cedula'],
-    $r['department'],
-    $r['municipality'],
+    $r['department_name'],
+    $r['municipality_name'],
     $r['community'],
     $r['organization_type'],
     $r['organization_name'],
@@ -166,6 +194,7 @@ while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $r['future_projection'],
     $r['enrolled_at'],
     $r['observations'],
+    $r['notes'],
     $r['final_grade'],
     $r['status'],
     $r['teacher_name'],

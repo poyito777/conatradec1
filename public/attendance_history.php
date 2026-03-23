@@ -24,6 +24,7 @@ function levelLabel($l){
 function groupStatusClass($status){
     if ($status === 'activo') return 'ok';
     if ($status === 'finalizado') return 'bad';
+    if ($status === 'cancelado') return 'pending';
     return 'pending';
 }
 
@@ -193,12 +194,6 @@ $totalRows = count($rows);
       color:#e5e7eb;
     }
 
-    .small{
-      font-size:12px;
-      color:var(--muted);
-      margin-top:4px;
-    }
-
     .btnS{
       display:inline-flex;
       align-items:center;
@@ -237,6 +232,7 @@ $totalRows = count($rows);
       border:1px solid var(--line);
       font-size:12px;
       font-weight:800;
+      text-transform:capitalize;
     }
 
     .pill.ok{

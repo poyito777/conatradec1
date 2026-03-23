@@ -1,7 +1,10 @@
 <?php
 require __DIR__ . '/../app/config/db.php';
+require __DIR__ . '/../app/helpers/csrf.php';
 
-function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+function h($v){
+    return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+}
 
 // Verificar si ya existe un admin
 $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'");
@@ -16,6 +19,8 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf_or_die();
+
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = (string)($_POST['password'] ?? '');
@@ -77,6 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       <?php else: ?>
         <form method="post" style="margin-top:14px;">
+          <?= csrf_input() ?>
+
           <div class="field">
             <label>Nombre</label>
             <input name="name" required>

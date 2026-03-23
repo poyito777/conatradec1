@@ -18,9 +18,31 @@ if ($id <= 0) {
 }
 
 $st = $pdo->prepare("
-  SELECT s.*, u.name AS teacher_name, u.email AS teacher_email
+  SELECT
+    s.*,
+    u.name AS teacher_name,
+    u.email AS teacher_email,
+    sc.name AS school_name,
+    d.name AS department_name,
+    m.name AS municipality_name,
+    so.organization_type,
+    so.organization_name,
+    so.organization_phone,
+    so.organization_location,
+    so.characterization,
+    so.trademark_registration,
+    so.number_of_members,
+    sp.course_purpose,
+    sp.future_projection,
+    sp.observations,
+    sp.notes
   FROM students s
   JOIN users u ON u.id = s.teacher_id
+  LEFT JOIN schools sc ON sc.id = s.school_id
+  LEFT JOIN departments d ON d.id = s.department_id
+  LEFT JOIN municipalities m ON m.id = s.municipality_id
+  LEFT JOIN student_organizations so ON so.student_id = s.id
+  LEFT JOIN student_profiles sp ON sp.student_id = s.id
   WHERE s.id = ?
   LIMIT 1
 ");
@@ -46,6 +68,15 @@ function levelLabel($l){
   if ($l === 'avanzado') return 'Avanzado';
   if ($l === 'intensivo') return 'Intensivo';
   return 'Básico';
+}
+
+function organizationTypeLabel($v){
+  if ($v === 'institucion') return 'Institución';
+  if ($v === 'privado') return 'Privado';
+  if ($v === 'emprendimiento') return 'Emprendimiento';
+  if ($v === 'estudiante') return 'Estudiante';
+  if ($v === 'productor') return 'Productor';
+  return '—';
 }
 
 // Fecha bonito
@@ -269,7 +300,7 @@ $today_human = date('d/m/Y');
         se encuentra registrado(a) en el programa de <b><?= h(courseLabel($s['course_type'])) ?></b>,
         nivel <b><?= h(levelLabel($s['course_level'])) ?></b>,
         <?= $s['enrolled_at'] ? " con fecha de inscripción <b>" . h($s['enrolled_at']) . "</b>" : "" ?>,
-        en la escuela <b><?= h($s['school'] ?: 'No especificada') ?></b>.
+        en la escuela <b><?= h($s['school_name'] ?: 'No especificada') ?></b>.
       </p>
 
       <p class="p">
@@ -284,12 +315,17 @@ $today_human = date('d/m/Y');
 
         <div class="box">
           <p class="k">Escuela</p>
-          <p class="v"><?= h($s['school'] ?: 'No especificada') ?></p>
+          <p class="v"><?= h($s['school_name'] ?: 'No especificada') ?></p>
         </div>
 
         <div class="box">
           <p class="k">Departamento</p>
-          <p class="v"><?= h($s['department'] ?: 'No especificado') ?></p>
+          <p class="v"><?= h($s['department_name'] ?: 'No especificado') ?></p>
+        </div>
+
+        <div class="box">
+          <p class="k">Municipio</p>
+          <p class="v"><?= h($s['municipality_name'] ?: 'No especificado') ?></p>
         </div>
 
         <div class="box">
@@ -298,8 +334,18 @@ $today_human = date('d/m/Y');
         </div>
 
         <div class="box">
+          <p class="k">Comunidad</p>
+          <p class="v"><?= h($s['community'] ?: 'No especificada') ?></p>
+        </div>
+
+        <div class="box">
+          <p class="k">Tipo de organización</p>
+          <p class="v"><?= h(organizationTypeLabel($s['organization_type'] ?? '')) ?></p>
+        </div>
+
+        <div class="box">
           <p class="k">Organización</p>
-          <p class="v"><?= h($s['organization'] ?: 'No especificada') ?></p>
+          <p class="v"><?= h($s['organization_name'] ?: 'No especificada') ?></p>
         </div>
 
         <div class="box">
@@ -315,6 +361,11 @@ $today_human = date('d/m/Y');
         <div class="box">
           <p class="k">Correo del docente</p>
           <p class="v"><?= h($s['teacher_email'] ?: 'No especificado') ?></p>
+        </div>
+
+        <div class="box">
+          <p class="k">Propósito del curso</p>
+          <p class="v"><?= h($s['course_purpose'] ?: '—') ?></p>
         </div>
 
         <div class="box" style="grid-column:1 / -1;">

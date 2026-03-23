@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/../app/config/db.php';
 require __DIR__ . '/../app/middleware/auth.php';
+require __DIR__ . '/../app/helpers/csrf.php';
+require __DIR__ . '/../app/helpers/log.php';
 
 requireLogin();
 requirePasswordChangeIfNeeded();
@@ -14,70 +16,101 @@ function h($v){
 $id = (int)($_GET['id'] ?? 0);
 $error = '';
 
-// Escuelas fijas
-$schools = [
-  'Escuela Café Boutique Managua',
-  'Cra. Natividad Martínez Sanchez',
-  'Cra. Eudosia Abdulia Gomez Chavarria "La Docha"',
-  'Cro. Gabriel Martínez Herrera San Juan de Río Coco-Madriz'
-];
+// =====================================================
+// Catálogos
+// =====================================================
+$schools = $pdo->query("
+  SELECT id, name
+  FROM schools
+  WHERE is_active = 1
+  ORDER BY name ASC
+")->fetchAll(PDO::FETCH_ASSOC);
 
-// Departamentos y municipios
-$municipios = [
-  'Boaco' => ['Boaco','Camoapa','San José de los Remates','San Lorenzo','Santa Lucía','Teustepe'],
-  'Carazo' => ['Diriamba','Dolores','El Rosario','Jinotepe','La Conquista','La Paz de Carazo','San Marcos','Santa Teresa'],
-  'Chinandega' => ['Chichigalpa','Chinandega','Cinco Pinos','Corinto','El Realejo','El Viejo','Posoltega','Puerto Morazán','San Francisco del Norte','San Pedro del Norte','Santo Tomás del Norte','Somotillo','Villanueva'],
-  'Chontales' => ['Acoyapa','Comalapa','Cuapa','El Coral','Juigalpa','La Libertad','San Francisco de Cuapa','San Pedro de Lóvago','Santo Domingo','Santo Tomás','Villa Sandino'],
-  'Estelí' => ['Condega','Estelí','La Trinidad','Pueblo Nuevo','San Juan de Limay','San Nicolás'],
-  'Granada' => ['Diriá','Diriomo','Granada','Nandaime'],
-  'Jinotega' => ['El Cuá','Jinotega','La Concordia','San José de Bocay','San Rafael del Norte','San Sebastián de Yalí','Santa María de Pantasma','Wiwilí de Jinotega'],
-  'León' => ['Achuapa','El Jicaral','La Paz Centro','Larreynaga','León','Nagarote','Quezalguaque','Santa Rosa del Peñón','Telica'],
-  'Madriz' => ['Las Sabanas','Palacagüina','San José de Cusmapa','San Juan de Río Coco','San Lucas','Somoto','Telpaneca','Totogalpa','Yalagüina'],
-  'Managua' => ['Ciudad Sandino','El Crucero','Managua','San Francisco Libre','San Rafael del Sur','Tipitapa','Ticuantepe','Villa Carlos Fonseca'],
-  'Masaya' => ['Catarina','La Concepción','Masatepe','Masaya','Nandasmo','Nindirí','Niquinohomo','San Juan de Oriente','Tisma'],
-  'Matagalpa' => ['Ciudad Darío','El Tuma - La Dalia','Esquipulas','Matagalpa','Matiguás','Muy Muy','Rancho Grande','Río Blanco','San Dionisio','San Isidro','San Ramón','Sébaco','Terrabona'],
-  'Nueva Segovia' => ['Ciudad Antigua','Dipilto','El Jícaro','Jalapa','Macuelizo','Mozonte','Murra','Ocotal','Quilalí','San Fernando','Santa María','Wiwilí de Nueva Segovia'],
-  'Río San Juan' => ['El Almendro','El Castillo','Morrito','San Carlos','San Juan de Nicaragua'],
-  'Rivas' => ['Altagracia','Belén','Buenos Aires','Cárdenas','Moyogalpa','Potosí','Rivas','San Jorge','San Juan del Sur','Tola'],
-  'RAAN' => ['Bonanza','Mulukukú','Prinzapolka','Puerto Cabezas','Rosita','Siuna','Waslala','Waspam'],
-  'RAAS' => ['Bluefields','Corn Island','Desembocadura de Río Grande','El Ayote','El Rama','Kukra Hill','La Cruz de Río Grande','Laguna de Perlas','Muelle de los Bueyes','Nueva Guinea','Paiwas']
-];
+$departments = $pdo->query("
+  SELECT id, name
+  FROM departments
+  WHERE is_active = 1
+  ORDER BY name ASC
+")->fetchAll(PDO::FETCH_ASSOC);
 
+$municipalityRows = $pdo->query("
+  SELECT id, name, department_id
+  FROM municipalities
+  WHERE is_active = 1
+  ORDER BY department_id ASC, name ASC
+")->fetchAll(PDO::FETCH_ASSOC);
+
+$municipios = [];
+foreach ($municipalityRows as $m) {
+  $depId = (int)$m['department_id'];
+  if (!isset($municipios[$depId])) {
+    $municipios[$depId] = [];
+  }
+  $municipios[$depId][] = [
+    'id' => (int)$m['id'],
+    'name' => $m['name']
+  ];
+}
+
+// =====================================================
 // Defaults
+// =====================================================
 $row = [
   'id' => 0,
-  'teacher_id' => $me['id'],
+  'teacher_id' => (int)$me['id'],
   'full_name' => '',
   'sex' => '',
   'education_level' => '',
   'profession' => '',
   'nationality' => '',
   'student_code' => '',
-  'school' => '',
+  'school_id' => '',
   'course_type' => 'barismo',
   'course_level' => 'basico',
   'phone' => '',
   'cedula' => '',
-  'department' => '',
+  'department_id' => '',
+  'municipality_id' => '',
   'municipality' => '',
   'community' => '',
   'organization_type' => '',
   'organization_name' => '',
   'organization_phone' => '',
   'organization_location' => '',
-  'organization' => '',
   'characterization' => '',
   'trademark_registration' => '',
   'course_purpose' => '',
   'number_of_members' => '',
   'future_projection' => '',
   'enrolled_at' => '',
-  'observations' => ''
+  'observations' => '',
+  'notes' => ''
 ];
 
+// =====================================================
 // Editar
+// =====================================================
 if ($id > 0) {
-  $st = $pdo->prepare("SELECT * FROM students WHERE id=? LIMIT 1");
+  $st = $pdo->prepare("
+    SELECT
+      s.*,
+      so.organization_type,
+      so.organization_name,
+      so.organization_phone,
+      so.organization_location,
+      so.characterization,
+      so.trademark_registration,
+      so.number_of_members,
+      sp.course_purpose,
+      sp.future_projection,
+      sp.observations,
+      sp.notes
+    FROM students s
+    LEFT JOIN student_organizations so ON so.student_id = s.id
+    LEFT JOIN student_profiles sp ON sp.student_id = s.id
+    WHERE s.id = ?
+    LIMIT 1
+  ");
   $st->execute([$id]);
   $found = $st->fetch(PDO::FETCH_ASSOC);
 
@@ -91,10 +124,25 @@ if ($id > 0) {
     exit("Acceso denegado");
   }
 
+  if (!empty($found['municipality_id'])) {
+    $munNameStmt = $pdo->prepare("
+      SELECT name
+      FROM municipalities
+      WHERE id = ?
+      LIMIT 1
+    ");
+    $munNameStmt->execute([(int)$found['municipality_id']]);
+    $found['municipality'] = (string)($munNameStmt->fetchColumn() ?: '');
+  } else {
+    $found['municipality'] = '';
+  }
+
   $row = array_merge($row, $found);
 }
 
+// =====================================================
 // Docentes para admin
+// =====================================================
 $teachers = [];
 if (($me['role'] ?? '') === 'admin') {
   $teachers = $pdo->query("
@@ -102,24 +150,30 @@ if (($me['role'] ?? '') === 'admin') {
     FROM users
     WHERE role='teacher' AND is_active=1
     ORDER BY name ASC
-  ")->fetchAll();
+  ")->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// =====================================================
+// Guardar
+// =====================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  verify_csrf_or_die();
+
   $full_name = trim($_POST['full_name'] ?? '');
   $sex = trim($_POST['sex'] ?? '');
   $education_level = trim($_POST['education_level'] ?? '');
   $profession = trim($_POST['profession'] ?? '');
   $nationality = trim($_POST['nationality'] ?? '');
 
-  $school = trim($_POST['school'] ?? '');
+  $school_id = (int)($_POST['school_id'] ?? 0);
   $course_type = trim($_POST['course_type'] ?? 'barismo');
   $course_level = trim($_POST['course_level'] ?? 'basico');
 
   $phone = trim($_POST['phone'] ?? '');
   $cedula = strtoupper(trim($_POST['cedula'] ?? ''));
-  $department = trim($_POST['department'] ?? '');
-  $municipality = trim($_POST['municipality'] ?? '');
+  $department_id = (int)($_POST['department_id'] ?? 0);
+  $municipality_name = trim($_POST['municipality'] ?? '');
+  $municipality_id = 0;
   $community = trim($_POST['community'] ?? '');
 
   $organization_type = trim($_POST['organization_type'] ?? '');
@@ -131,9 +185,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $course_purpose = trim($_POST['course_purpose'] ?? '');
   $number_of_members_raw = trim($_POST['number_of_members'] ?? '');
   $future_projection = trim($_POST['future_projection'] ?? '');
-
   $enrolled_at = trim($_POST['enrolled_at'] ?? '');
   $observations = trim($_POST['observations'] ?? '');
+  $notes = trim($_POST['notes'] ?? '');
+
+  if ($department_id > 0 && $municipality_name !== '') {
+    $munStmt = $pdo->prepare("
+      SELECT id
+      FROM municipalities
+      WHERE department_id = ? AND name = ?
+      LIMIT 1
+    ");
+    $munStmt->execute([$department_id, $municipality_name]);
+    $municipality_id = (int)($munStmt->fetchColumn() ?: 0);
+  }
 
   $number_of_members = ($number_of_members_raw === '') ? null : (int)$number_of_members_raw;
 
@@ -147,10 +212,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $phoneDigits = preg_replace('/\D+/', '', $phone);
   $orgPhoneDigits = preg_replace('/\D+/', '', $organization_phone);
 
+  // =====================================================
   // Validaciones
+  // =====================================================
   if ($full_name === '') {
     $error = "El nombre es obligatorio.";
-  } elseif (!in_array($school, $schools, true)) {
+  } elseif ($school_id <= 0) {
     $error = "Seleccioná una escuela válida.";
   } elseif ($sex !== '' && !in_array($sex, ['masculino','femenino'], true)) {
     $error = "Sexo inválido.";
@@ -164,6 +231,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $error = "El teléfono debe tener exactamente 8 dígitos.";
   } elseif ($cedula !== '' && !preg_match('/^\d{13}[A-Z]$/', $cedula)) {
     $error = "La cédula debe tener exactamente 13 números y 1 letra.";
+  } elseif ($department_id > 0 && $municipality_name !== '' && $municipality_id <= 0) {
+    $error = "El municipio no pertenece al departamento seleccionado.";
   } elseif ($organization_phone !== '' && strlen($orgPhoneDigits) !== 8) {
     $error = "El teléfono de la organización debe tener exactamente 8 dígitos.";
   } elseif ($organization_type !== '' && !in_array($organization_type, ['institucion','privado','emprendimiento','estudiante','productor'], true)) {
@@ -173,120 +242,230 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   } elseif ($number_of_members !== null && $number_of_members < 0) {
     $error = "El número de socios no puede ser negativo.";
   } else {
+    try {
+      $pdo->beginTransaction();
 
-    if ($id > 0) {
-      $up = $pdo->prepare("
-        UPDATE students SET
-          teacher_id=?,
-          full_name=?,
-          sex=?,
-          education_level=?,
-          profession=?,
-          nationality=?,
-          school=?,
-          course_type=?,
-          course_level=?,
-          phone=?,
-          cedula=?,
-          department=?,
-          municipality=?,
-          community=?,
-          organization_type=?,
-          organization_name=?,
-          organization_phone=?,
-          organization_location=?,
-          characterization=?,
-          trademark_registration=?,
-          course_purpose=?,
-          number_of_members=?,
-          future_projection=?,
-          enrolled_at=?,
-          observations=?
-        WHERE id=?
-      ");
+      if ($id > 0) {
+        $up = $pdo->prepare("
+          UPDATE students SET
+            teacher_id = ?,
+            school_id = ?,
+            department_id = ?,
+            municipality_id = ?,
+            full_name = ?,
+            sex = ?,
+            education_level = ?,
+            profession = ?,
+            nationality = ?,
+            phone = ?,
+            cedula = ?,
+            course_type = ?,
+            course_level = ?,
+            enrolled_at = ?,
+            community = ?
+          WHERE id = ?
+        ");
 
-      $up->execute([
-        $teacher_id,
-        $full_name,
-        ($sex === '' ? null : $sex),
-        ($education_level === '' ? null : $education_level),
-        $profession,
-        ($nationality === '' ? null : $nationality),
-        $school,
-        $course_type,
-        $course_level,
-        ($phone === '' ? null : $phoneDigits),
-        ($cedula === '' ? null : $cedula),
-        $department,
-        $municipality,
-        $community,
-        ($organization_type === '' ? null : $organization_type),
-        $organization_name,
-        ($organization_phone === '' ? null : $orgPhoneDigits),
-        $organization_location,
-        $characterization,
-        ($trademark_registration === '' ? null : $trademark_registration),
-        $course_purpose,
-        $number_of_members,
-        $future_projection,
-        ($enrolled_at === '' ? null : $enrolled_at),
-        $observations,
-        $id
-      ]);
+        $up->execute([
+          $teacher_id,
+          $school_id ?: null,
+          $department_id ?: null,
+          $municipality_id ?: null,
+          $full_name,
+          ($sex === '' ? null : $sex),
+          ($education_level === '' ? null : $education_level),
+          ($profession === '' ? null : $profession),
+          ($nationality === '' ? null : $nationality),
+          ($phone === '' ? null : $phoneDigits),
+          ($cedula === '' ? null : $cedula),
+          $course_type,
+          $course_level,
+          ($enrolled_at === '' ? null : $enrolled_at),
+          ($community === '' ? null : $community),
+          $id
+        ]);
+
+        $orgSave = $pdo->prepare("
+          INSERT INTO student_organizations
+          (
+            student_id,
+            organization_type,
+            organization_name,
+            organization_phone,
+            organization_location,
+            characterization,
+            trademark_registration,
+            number_of_members
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            organization_type = VALUES(organization_type),
+            organization_name = VALUES(organization_name),
+            organization_phone = VALUES(organization_phone),
+            organization_location = VALUES(organization_location),
+            characterization = VALUES(characterization),
+            trademark_registration = VALUES(trademark_registration),
+            number_of_members = VALUES(number_of_members)
+        ");
+
+        $orgSave->execute([
+          $id,
+          ($organization_type === '' ? null : $organization_type),
+          ($organization_name === '' ? null : $organization_name),
+          ($organization_phone === '' ? null : $orgPhoneDigits),
+          ($organization_location === '' ? null : $organization_location),
+          ($characterization === '' ? null : $characterization),
+          ($trademark_registration === '' ? null : $trademark_registration),
+          $number_of_members
+        ]);
+
+        $profileSave = $pdo->prepare("
+          INSERT INTO student_profiles
+          (
+            student_id,
+            course_purpose,
+            future_projection,
+            observations,
+            notes
+          )
+          VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            course_purpose = VALUES(course_purpose),
+            future_projection = VALUES(future_projection),
+            observations = VALUES(observations),
+            notes = VALUES(notes)
+        ");
+
+        $profileSave->execute([
+          $id,
+          ($course_purpose === '' ? null : $course_purpose),
+          ($future_projection === '' ? null : $future_projection),
+          ($observations === '' ? null : $observations),
+          ($notes === '' ? null : $notes)
+        ]);
+
+      } else {
+        $ins = $pdo->prepare("
+          INSERT INTO students
+          (
+            teacher_id, school_id, department_id, municipality_id,
+            full_name, sex, education_level, profession, nationality,
+            phone, cedula,
+            course_type, course_level, enrolled_at, community
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        $ins->execute([
+          $teacher_id,
+          $school_id ?: null,
+          $department_id ?: null,
+          $municipality_id ?: null,
+          $full_name,
+          ($sex === '' ? null : $sex),
+          ($education_level === '' ? null : $education_level),
+          ($profession === '' ? null : $profession),
+          ($nationality === '' ? null : $nationality),
+          ($phone === '' ? null : $phoneDigits),
+          ($cedula === '' ? null : $cedula),
+          $course_type,
+          $course_level,
+          ($enrolled_at === '' ? null : $enrolled_at),
+          ($community === '' ? null : $community)
+        ]);
+
+        $newId = (int)$pdo->lastInsertId();
+        $studentCode = 'EST-' . date('Y') . '-' . str_pad((string)$newId, 4, '0', STR_PAD_LEFT);
+
+        $upCode = $pdo->prepare("UPDATE students SET student_code = ? WHERE id = ?");
+        $upCode->execute([$studentCode, $newId]);
+
+        $orgSave = $pdo->prepare("
+          INSERT INTO student_organizations
+          (
+            student_id,
+            organization_type,
+            organization_name,
+            organization_phone,
+            organization_location,
+            characterization,
+            trademark_registration,
+            number_of_members
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            organization_type = VALUES(organization_type),
+            organization_name = VALUES(organization_name),
+            organization_phone = VALUES(organization_phone),
+            organization_location = VALUES(organization_location),
+            characterization = VALUES(characterization),
+            trademark_registration = VALUES(trademark_registration),
+            number_of_members = VALUES(number_of_members)
+        ");
+
+        $orgSave->execute([
+          $newId,
+          ($organization_type === '' ? null : $organization_type),
+          ($organization_name === '' ? null : $organization_name),
+          ($organization_phone === '' ? null : $orgPhoneDigits),
+          ($organization_location === '' ? null : $organization_location),
+          ($characterization === '' ? null : $characterization),
+          ($trademark_registration === '' ? null : $trademark_registration),
+          $number_of_members
+        ]);
+
+        $profileSave = $pdo->prepare("
+          INSERT INTO student_profiles
+          (
+            student_id,
+            course_purpose,
+            future_projection,
+            observations,
+            notes
+          )
+          VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            course_purpose = VALUES(course_purpose),
+            future_projection = VALUES(future_projection),
+            observations = VALUES(observations),
+            notes = VALUES(notes)
+        ");
+
+        $profileSave->execute([
+          $newId,
+          ($course_purpose === '' ? null : $course_purpose),
+          ($future_projection === '' ? null : $future_projection),
+          ($observations === '' ? null : $observations),
+          ($notes === '' ? null : $notes)
+        ]);
+      }
+
+      $pdo->commit();
+
+      if ($id > 0) {
+        log_activity(
+          $pdo,
+          (int)$_SESSION['user']['id'],
+          'student_updated',
+          "Se editó el estudiante {$full_name} con ID {$id}"
+        );
+      } else {
+        log_activity(
+          $pdo,
+          (int)$_SESSION['user']['id'],
+          'student_created',
+          "Se creó el estudiante {$full_name} con ID {$newId} y código {$studentCode}"
+        );
+      }
 
       header("Location: students.php");
       exit;
 
-    } else {
-      $ins = $pdo->prepare("
-        INSERT INTO students
-        (
-          teacher_id, full_name, sex, education_level, profession, nationality,
-          school, course_type, course_level,
-          phone, cedula, department, municipality, community,
-          organization_type, organization_name, organization_phone, organization_location,
-          characterization, trademark_registration, course_purpose, number_of_members, future_projection,
-          enrolled_at, observations
-        )
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      ");
-
-      $ins->execute([
-        $teacher_id,
-        $full_name,
-        ($sex === '' ? null : $sex),
-        ($education_level === '' ? null : $education_level),
-        $profession,
-        ($nationality === '' ? null : $nationality),
-        $school,
-        $course_type,
-        $course_level,
-        ($phone === '' ? null : $phoneDigits),
-        ($cedula === '' ? null : $cedula),
-        $department,
-        $municipality,
-        $community,
-        ($organization_type === '' ? null : $organization_type),
-        $organization_name,
-        ($organization_phone === '' ? null : $orgPhoneDigits),
-        $organization_location,
-        $characterization,
-        ($trademark_registration === '' ? null : $trademark_registration),
-        $course_purpose,
-        $number_of_members,
-        $future_projection,
-        ($enrolled_at === '' ? null : $enrolled_at),
-        $observations
-      ]);
-
-      $newId = (int)$pdo->lastInsertId();
-      $studentCode = 'EST-' . date('Y') . '-' . str_pad((string)$newId, 4, '0', STR_PAD_LEFT);
-
-      $upCode = $pdo->prepare("UPDATE students SET student_code=? WHERE id=?");
-      $upCode->execute([$studentCode, $newId]);
-
-      header("Location: students.php");
-      exit;
+    } catch (Throwable $e) {
+      if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+      }
+      $error = "Ocurrió un error al guardar el estudiante: " . $e->getMessage();
     }
   }
 
@@ -297,13 +476,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $row['education_level'] = $education_level;
   $row['profession'] = $profession;
   $row['nationality'] = $nationality;
-  $row['school'] = $school;
+  $row['school_id'] = $school_id;
   $row['course_type'] = $course_type;
   $row['course_level'] = $course_level;
   $row['phone'] = $phone;
   $row['cedula'] = $cedula;
-  $row['department'] = $department;
-  $row['municipality'] = $municipality;
+  $row['department_id'] = $department_id;
+  $row['municipality_id'] = $municipality_id;
+  $row['municipality'] = $municipality_name;
   $row['community'] = $community;
   $row['organization_type'] = $organization_type;
   $row['organization_name'] = $organization_name;
@@ -316,6 +496,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $row['future_projection'] = $future_projection;
   $row['enrolled_at'] = $enrolled_at;
   $row['observations'] = $observations;
+  $row['notes'] = $notes;
 }
 ?>
 <!doctype html>
@@ -361,12 +542,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="post" style="margin-top:12px;">
+      <?= csrf_input(); ?>
+
       <div class="grid">
 
         <?php if (($me['role'] ?? '') === 'admin'): ?>
           <div class="field col12">
-            <label>Docente</label>
-            <select name="teacher_id" required>
+            <label for="teacher_id">Docente</label>
+            <select name="teacher_id" id="teacher_id" required>
               <?php foreach($teachers as $t): ?>
                 <option value="<?= (int)$t['id'] ?>" <?= (int)$row['teacher_id'] === (int)$t['id'] ? 'selected' : '' ?>>
                   <?= h($t['name']) ?> (<?= h($t['email']) ?>)
@@ -377,8 +560,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <div class="field col8">
-          <label>Nombre completo *</label>
-          <input name="full_name" value="<?= h($row['full_name']) ?>" required>
+          <label for="full_name">Nombre completo *</label>
+          <input id="full_name" name="full_name" value="<?= h($row['full_name']) ?>" required>
         </div>
 
         <div class="field col4">
@@ -389,8 +572,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="field col4">
-          <label>Sexo</label>
-          <select name="sex">
+          <label for="sex">Sexo</label>
+          <select name="sex" id="sex">
             <option value="">Seleccionar</option>
             <option value="masculino" <?= ($row['sex'] ?? '') === 'masculino' ? 'selected' : '' ?>>Masculino</option>
             <option value="femenino" <?= ($row['sex'] ?? '') === 'femenino' ? 'selected' : '' ?>>Femenino</option>
@@ -398,8 +581,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="field col4">
-          <label>Nivel escolar</label>
-          <select name="education_level">
+          <label for="education_level">Nivel escolar</label>
+          <select name="education_level" id="education_level">
             <option value="">Seleccionar</option>
             <option value="secundaria" <?= ($row['education_level'] ?? '') === 'secundaria' ? 'selected' : '' ?>>Secundaria</option>
             <option value="tecnico" <?= ($row['education_level'] ?? '') === 'tecnico' ? 'selected' : '' ?>>Técnico</option>
@@ -408,9 +591,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="field col4">
-          <label>Nacionalidad</label>
+          <label for="nationality">Nacionalidad</label>
           <input
             type="text"
+            id="nationality"
             name="nationality"
             value="<?= h($row['nationality'] ?? '') ?>"
             placeholder="Ej: Nicaragüense"
@@ -418,33 +602,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="field col6">
-          <label>Profesión</label>
-          <input name="profession" value="<?= h($row['profession'] ?? '') ?>">
+          <label for="profession">Profesión</label>
+          <input id="profession" name="profession" value="<?= h($row['profession'] ?? '') ?>">
         </div>
 
         <div class="field col6">
-          <label>Escuela</label>
-          <select name="school" required>
+          <label for="school_id">Escuela</label>
+          <select name="school_id" id="school_id" required>
             <option value="">Seleccionar escuela</option>
             <?php foreach ($schools as $school): ?>
-              <option value="<?= h($school) ?>" <?= ($row['school'] ?? '') === $school ? 'selected' : '' ?>>
-                <?= h($school) ?>
+              <option value="<?= (int)$school['id'] ?>" <?= (int)($row['school_id'] ?? 0) === (int)$school['id'] ? 'selected' : '' ?>>
+                <?= h($school['name']) ?>
               </option>
             <?php endforeach; ?>
           </select>
         </div>
 
         <div class="field col4">
-          <label>Tipo de curso</label>
-          <select name="course_type">
+          <label for="course_type">Tipo de curso</label>
+          <select name="course_type" id="course_type">
             <option value="barismo" <?= ($row['course_type'] ?? '') === 'barismo' ? 'selected' : '' ?>>Barismo</option>
             <option value="catacion" <?= ($row['course_type'] ?? '') === 'catacion' ? 'selected' : '' ?>>Catación</option>
           </select>
         </div>
 
         <div class="field col4">
-          <label>Nivel</label>
-          <select name="course_level">
+          <label for="course_level">Nivel</label>
+          <select name="course_level" id="course_level">
             <option value="basico" <?= ($row['course_level'] ?? '') === 'basico' ? 'selected' : '' ?>>Básico</option>
             <option value="avanzado" <?= ($row['course_level'] ?? '') === 'avanzado' ? 'selected' : '' ?>>Avanzado</option>
             <option value="intensivo" <?= ($row['course_level'] ?? '') === 'intensivo' ? 'selected' : '' ?>>Intensivo</option>
@@ -452,19 +636,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="field col4">
-          <label>Fecha de inscripción</label>
-          <input type="date" name="enrolled_at" value="<?= h($row['enrolled_at'] ?? '') ?>">
+          <label for="enrolled_at">Fecha de inscripción</label>
+          <input type="date" id="enrolled_at" name="enrolled_at" value="<?= h($row['enrolled_at'] ?? '') ?>">
         </div>
 
         <div class="field col4">
-          <label>Teléfono</label>
-          <input name="phone" value="<?= h($row['phone'] ?? '') ?>" placeholder="Ej: 88888888" maxlength="8" inputmode="numeric">
+          <label for="phone">Teléfono</label>
+          <input id="phone" name="phone" value="<?= h($row['phone'] ?? '') ?>" placeholder="Ej: 88888888" maxlength="8" inputmode="numeric">
           <div class="hint">Debe tener exactamente 8 dígitos.</div>
         </div>
 
         <div class="field col4">
-          <label>Cédula</label>
+          <label for="cedula">Cédula</label>
           <input
+            id="cedula"
             name="cedula"
             value="<?= h($row['cedula'] ?? '') ?>"
             placeholder="Ej: 0011234567890A"
@@ -477,30 +662,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="field col4">
-          <label>Departamento</label>
-          <select name="department" id="departmentSelect">
+          <label for="departmentSelect">Departamento</label>
+          <select name="department_id" id="departmentSelect">
             <option value="">Seleccionar departamento</option>
-            <?php foreach (array_keys($municipios) as $dep): ?>
-              <option value="<?= h($dep) ?>" <?= ($row['department'] ?? '') === $dep ? 'selected' : '' ?>><?= h($dep) ?></option>
+            <?php foreach ($departments as $dep): ?>
+              <option value="<?= (int)$dep['id'] ?>" <?= (int)($row['department_id'] ?? 0) === (int)$dep['id'] ? 'selected' : '' ?>>
+                <?= h($dep['name']) ?>
+              </option>
             <?php endforeach; ?>
           </select>
         </div>
 
         <div class="field col4">
-          <label>Municipio</label>
+          <label for="municipalitySelect">Municipio</label>
           <select name="municipality" id="municipalitySelect" data-selected="<?= h($row['municipality'] ?? '') ?>">
             <option value="">Seleccionar municipio</option>
           </select>
+          <div class="hint">Seleccioná primero el departamento y luego el municipio.</div>
         </div>
 
         <div class="field col4">
-          <label>Comunidad</label>
-          <input name="community" value="<?= h($row['community'] ?? '') ?>">
+          <label for="community">Comunidad</label>
+          <input id="community" name="community" value="<?= h($row['community'] ?? '') ?>">
         </div>
 
         <div class="field col4">
-          <label>Tipo de organización</label>
-          <select name="organization_type">
+          <label for="organization_type">Tipo de organización</label>
+          <select name="organization_type" id="organization_type">
             <option value="">Seleccionar</option>
             <option value="institucion" <?= ($row['organization_type'] ?? '') === 'institucion' ? 'selected' : '' ?>>Institución</option>
             <option value="privado" <?= ($row['organization_type'] ?? '') === 'privado' ? 'selected' : '' ?>>Privado</option>
@@ -511,28 +699,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="field col4">
-          <label>Nombre de organización</label>
-          <input name="organization_name" value="<?= h($row['organization_name'] ?? '') ?>">
+          <label for="organization_name">Nombre de organización</label>
+          <input id="organization_name" name="organization_name" value="<?= h($row['organization_name'] ?? '') ?>">
         </div>
 
         <div class="field col4">
-          <label>Teléfono de la organización</label>
-          <input name="organization_phone" value="<?= h($row['organization_phone'] ?? '') ?>" placeholder="Ej: 88888888" maxlength="8" inputmode="numeric">
+          <label for="organization_phone">Teléfono de la organización</label>
+          <input id="organization_phone" name="organization_phone" value="<?= h($row['organization_phone'] ?? '') ?>" placeholder="Ej: 88888888" maxlength="8" inputmode="numeric">
         </div>
 
         <div class="field col6">
-          <label>Ubicación de la organización</label>
-          <input name="organization_location" value="<?= h($row['organization_location'] ?? '') ?>">
+          <label for="organization_location">Ubicación de la organización</label>
+          <input id="organization_location" name="organization_location" value="<?= h($row['organization_location'] ?? '') ?>">
         </div>
 
         <div class="field col6">
-          <label>Caracterización</label>
-          <input name="characterization" value="<?= h($row['characterization'] ?? '') ?>" placeholder="Ej: productor, tostador, barista, catador...">
+          <label for="characterization">Caracterización</label>
+          <input id="characterization" name="characterization" value="<?= h($row['characterization'] ?? '') ?>" placeholder="Ej: productor, tostador, barista, catador...">
         </div>
 
         <div class="field col4">
-          <label>Registro de marca</label>
-          <select name="trademark_registration">
+          <label for="trademark_registration">Registro de marca</label>
+          <select name="trademark_registration" id="trademark_registration">
             <option value="">Seleccionar</option>
             <option value="si" <?= ($row['trademark_registration'] ?? '') === 'si' ? 'selected' : '' ?>>Sí</option>
             <option value="no" <?= ($row['trademark_registration'] ?? '') === 'no' ? 'selected' : '' ?>>No</option>
@@ -540,23 +728,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="field col4">
-          <label>Número de socios</label>
-          <input type="number" min="0" name="number_of_members" value="<?= h($row['number_of_members'] ?? '') ?>">
+          <label for="number_of_members">Número de socios</label>
+          <input type="number" min="0" id="number_of_members" name="number_of_members" value="<?= h($row['number_of_members'] ?? '') ?>">
         </div>
 
         <div class="field col12">
-          <label>Propósito del curso</label>
-          <textarea name="course_purpose" rows="3"><?= h($row['course_purpose'] ?? '') ?></textarea>
+          <label for="course_purpose">Propósito del curso</label>
+          <textarea id="course_purpose" name="course_purpose" rows="3"><?= h($row['course_purpose'] ?? '') ?></textarea>
         </div>
 
         <div class="field col12">
-          <label>Proyección a futuro</label>
-          <textarea name="future_projection" rows="3"><?= h($row['future_projection'] ?? '') ?></textarea>
+          <label for="future_projection">Proyección a futuro</label>
+          <textarea id="future_projection" name="future_projection" rows="3"><?= h($row['future_projection'] ?? '') ?></textarea>
         </div>
 
         <div class="field col12">
-          <label>Observaciones</label>
-          <textarea name="observations" rows="4"><?= h($row['observations'] ?? '') ?></textarea>
+          <label for="observations">Observaciones</label>
+          <textarea id="observations" name="observations" rows="4"><?= h($row['observations'] ?? '') ?></textarea>
+        </div>
+
+        <div class="field col12">
+          <label for="notes">Notas internas</label>
+          <textarea id="notes" name="notes" rows="3"><?= h($row['notes'] ?? '') ?></textarea>
         </div>
 
       </div>
@@ -590,16 +783,18 @@ function loadMunicipalities() {
   const depSelect = document.getElementById('departmentSelect');
   const muniSelect = document.getElementById('municipalitySelect');
   const selected = muniSelect.dataset.selected || '';
-  const dep = depSelect.value;
+  const depId = parseInt(depSelect.value || '0', 10);
 
   muniSelect.innerHTML = '<option value="">Seleccionar municipio</option>';
 
-  if (dep && municipiosPorDepartamento[dep]) {
-    municipiosPorDepartamento[dep].forEach(function(muni) {
+  if (depId && municipiosPorDepartamento[depId]) {
+    municipiosPorDepartamento[depId].forEach(function(muni) {
       const opt = document.createElement('option');
-      opt.value = muni;
-      opt.textContent = muni;
-      if (muni === selected) opt.selected = true;
+      opt.value = muni.name;
+      opt.textContent = muni.name;
+      if (muni.name === selected) {
+        opt.selected = true;
+      }
       muniSelect.appendChild(opt);
     });
   }
@@ -614,7 +809,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadMunicipalities();
   });
 
-  const cedulaInput = document.querySelector('input[name="cedula"]');
+  const cedulaInput = document.getElementById('cedula');
   if (cedulaInput) {
     cedulaInput.addEventListener('input', function() {
       this.value = this.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 14);

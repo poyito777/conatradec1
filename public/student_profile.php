@@ -18,9 +18,31 @@ if ($id <= 0) {
 }
 
 $stmt = $pdo->prepare("
-  SELECT s.*, u.name AS teacher_name, u.email AS teacher_email
+  SELECT
+    s.*,
+    u.name AS teacher_name,
+    u.email AS teacher_email,
+    sc.name AS school_name,
+    d.name AS department_name,
+    m.name AS municipality_name,
+    so.organization_type,
+    so.organization_name,
+    so.organization_phone,
+    so.organization_location,
+    so.characterization,
+    so.trademark_registration,
+    so.number_of_members,
+    sp.course_purpose,
+    sp.future_projection,
+    sp.observations,
+    sp.notes
   FROM students s
   JOIN users u ON u.id = s.teacher_id
+  LEFT JOIN schools sc ON sc.id = s.school_id
+  LEFT JOIN departments d ON d.id = s.department_id
+  LEFT JOIN municipalities m ON m.id = s.municipality_id
+  LEFT JOIN student_organizations so ON so.student_id = s.id
+  LEFT JOIN student_profiles sp ON sp.student_id = s.id
   WHERE s.id = ?
   LIMIT 1
 ");
@@ -101,6 +123,7 @@ $stmt = $pdo->prepare("
     g.status AS group_status,
     g.start_date,
     g.end_date,
+    g.created_at,
     u.name AS group_teacher_name,
     sg.exam1,
     sg.exam2,
@@ -108,6 +131,7 @@ $stmt = $pdo->prepare("
     sg.exam4,
     sg.exam5,
     sg.final_grade,
+    sg.status AS academic_status,
     COUNT(ai.id) AS attendance_total,
     SUM(CASE WHEN ai.present = 1 THEN 1 ELSE 0 END) AS attendance_present
   FROM group_students gs
@@ -124,8 +148,8 @@ $stmt = $pdo->prepare("
   WHERE gs.student_id = ?
   GROUP BY
     g.id, g.group_code, g.name, g.course_type, g.course_level, g.status,
-    g.start_date, g.end_date, u.name,
-    sg.exam1, sg.exam2, sg.exam3, sg.exam4, sg.exam5, sg.final_grade
+    g.start_date, g.end_date, g.created_at, u.name,
+    sg.exam1, sg.exam2, sg.exam3, sg.exam4, sg.exam5, sg.final_grade, sg.status
   ORDER BY g.created_at DESC, g.id DESC
 ");
 $stmt->execute([$id]);
@@ -151,6 +175,22 @@ $overallAttendancePercent = $totalAttendanceRecords > 0
   : null;
 
 $totalGroups = count($academicGroups);
+$averageSum = 0;
+$averageCount = 0;
+$latestAcademicStatus = 'pendiente';
+
+if ($academicGroups) {
+  $latestAcademicStatus = $academicGroups[0]['academic_status'] ?: 'pendiente';
+}
+
+foreach ($academicGroups as $g) {
+  if ($g['final_grade'] !== null && $g['final_grade'] !== '') {
+    $averageSum += (float)$g['final_grade'];
+    $averageCount++;
+  }
+}
+
+$overallAcademicAverage = $averageCount > 0 ? round($averageSum / $averageCount, 2) : null;
 ?>
 <!doctype html>
 <html lang="es">
@@ -348,7 +388,7 @@ $totalGroups = count($academicGroups);
 
     table{
       width:100%;
-      min-width:980px;
+      min-width:1080px;
       border-collapse:collapse;
     }
 
@@ -418,22 +458,22 @@ $totalGroups = count($academicGroups);
         <p class="k">Nombre completo</p>
         <p class="v" style="font-size:18px;"><?= h($s['full_name']) ?></p>
         <p class="muted" style="margin:8px 0 0;">
-          <?= h($s['school'] ?: 'Escuela no especificada') ?>
+          <?= h($s['school_name'] ?: 'Escuela no especificada') ?>
         </p>
       </div>
 
       <div class="section-title col12">Resumen académico</div>
 
       <div class="summary-card col3">
-        <p class="k">Nota final actual</p>
-        <div class="num"><?= h($s['final_grade'] !== null && $s['final_grade'] !== '' ? $s['final_grade'] : '—') ?></div>
+        <p class="k">Promedio general por grupos</p>
+        <div class="num"><?= $overallAcademicAverage !== null ? h($overallAcademicAverage) : '—' ?></div>
       </div>
 
       <div class="summary-card col3">
-        <p class="k">Estado académico</p>
+        <p class="k">Último estado académico</p>
         <div style="margin-top:8px;">
-          <span class="status-pill <?= h(studentStatusClass($s['status'] ?? 'pendiente')) ?>">
-            <?= h($s['status'] ?: 'pendiente') ?>
+          <span class="status-pill <?= h(studentStatusClass($latestAcademicStatus)) ?>">
+            <?= h($latestAcademicStatus ?: 'pendiente') ?>
           </span>
         </div>
       </div>
@@ -491,12 +531,12 @@ $totalGroups = count($academicGroups);
       <div class="section-title col12">Formación</div>
 
       <div class="kv col6">
-        <p class="k">Curso</p>
+        <p class="k">Curso principal</p>
         <p class="v"><?= h(courseLabel($s['course_type'] ?? 'barismo')) ?></p>
       </div>
 
       <div class="kv col6">
-        <p class="k">Nivel</p>
+        <p class="k">Nivel principal</p>
         <p class="v"><?= h(levelLabel($s['course_level'] ?? 'basico')) ?></p>
       </div>
 
@@ -523,6 +563,7 @@ $totalGroups = count($academicGroups);
                   <th>Docente</th>
                   <th>Notas registradas</th>
                   <th>Nota final</th>
+                  <th>Estado académico</th>
                   <th>Asistencia</th>
                   <th>Estado del grupo</th>
                 </tr>
@@ -542,6 +583,8 @@ $totalGroups = count($academicGroups);
                         $gradesList[] = $g[$examKey];
                       }
                     }
+
+                    $academicStatus = $g['academic_status'] ?: 'pendiente';
                   ?>
                   <tr>
                     <td>
@@ -557,6 +600,11 @@ $totalGroups = count($academicGroups);
                     <td><?= h($g['group_teacher_name']) ?></td>
                     <td><?= $gradesList ? h(implode(' / ', $gradesList)) : '—' ?></td>
                     <td><?= h($g['final_grade'] !== null && $g['final_grade'] !== '' ? $g['final_grade'] : '—') ?></td>
+                    <td>
+                      <span class="status-pill <?= h(studentStatusClass($academicStatus)) ?>">
+                        <?= h($academicStatus) ?>
+                      </span>
+                    </td>
                     <td>
                       <?= $attendancePercent !== null ? h($attendancePercent . '%') : '—' ?>
                       <div class="small">
@@ -582,12 +630,12 @@ $totalGroups = count($academicGroups);
 
       <div class="kv col4">
         <p class="k">Departamento</p>
-        <p class="v"><?= h($s['department'] ?: '—') ?></p>
+        <p class="v"><?= h($s['department_name'] ?: '—') ?></p>
       </div>
 
       <div class="kv col4">
         <p class="k">Municipio</p>
-        <p class="v"><?= h($s['municipality'] ?: '—') ?></p>
+        <p class="v"><?= h($s['municipality_name'] ?: '—') ?></p>
       </div>
 
       <div class="kv col4">
@@ -640,6 +688,13 @@ $totalGroups = count($academicGroups);
         <div class="boxNote">
           <p class="k" style="margin-bottom:10px;">Observaciones</p>
           <p><?= h($s['observations'] ?: '—') ?></p>
+        </div>
+      </div>
+
+      <div class="col12">
+        <div class="boxNote">
+          <p class="k" style="margin-bottom:10px;">Notas internas</p>
+          <p><?= h($s['notes'] ?: '—') ?></p>
         </div>
       </div>
 

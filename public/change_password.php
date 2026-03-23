@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/../app/config/db.php';
 require __DIR__ . '/../app/middleware/auth.php';
+require __DIR__ . '/../app/helpers/csrf.php';
+require __DIR__ . '/../app/helpers/log.php';
 
 requireLogin();
 
@@ -14,6 +16,8 @@ function h($v){
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  verify_csrf_or_die();
+
   $current = (string)($_POST['current_password'] ?? '');
   $new1 = (string)($_POST['new_password'] ?? '');
   $new2 = (string)($_POST['new_password2'] ?? '');
@@ -27,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   } else {
     $st = $pdo->prepare("SELECT password_hash FROM users WHERE id=? LIMIT 1");
     $st->execute([(int)$me['id']]);
-    $u = $st->fetch();
+    $u = $st->fetch(PDO::FETCH_ASSOC);
 
     if (!$u) {
       http_response_code(404);
@@ -38,8 +42,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $error = "La contraseña actual no es correcta.";
     } else {
       $newHash = password_hash($new1, PASSWORD_DEFAULT);
-      $up = $pdo->prepare("UPDATE users SET password_hash=?, must_change_password=0 WHERE id=?");
+
+      $up = $pdo->prepare("
+        UPDATE users
+        SET password_hash = ?, must_change_password = 0
+        WHERE id = ?
+      ");
       $up->execute([$newHash, (int)$me['id']]);
+
+      log_activity(
+        $pdo,
+        (int)$me['id'],
+        'password_changed',
+        'El usuario cambió su contraseña correctamente'
+      );
 
       $_SESSION['user']['must_change_password'] = 0;
 
@@ -173,6 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="post" style="margin-top:14px;">
+      <?= csrf_input(); ?>
       <div class="field">
         <label>Contraseña actual</label>
         <input type="password" name="current_password" required>
@@ -209,7 +226,5 @@ function toggleSidebar() {
   }
 }
 </script>
-</div>
-</div>
 </body>
 </html>

@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/../app/config/db.php';
 require __DIR__ . '/../app/middleware/auth.php';
+require __DIR__ . '/../app/helpers/csrf.php';
+require __DIR__ . '/../app/helpers/log.php';
 
 requireRole('admin');
 requirePasswordChangeIfNeeded();
@@ -22,6 +24,8 @@ function h($v){
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  verify_csrf_or_die();
+
   $name  = trim($_POST['name'] ?? '');
   $email = strtolower(trim($_POST['email'] ?? ''));
 
@@ -58,6 +62,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           VALUES (?, ?, ?, ?, 1, 1)
         ");
         $ins->execute([$name, $email, $hash, 'teacher']);
+
+        $newTeacherId = (int)$pdo->lastInsertId();
+
+        log_activity(
+          $pdo,
+          (int)$_SESSION['user']['id'],
+          'teacher_created',
+          "Se creó el docente {$name} ({$email}) con ID {$newTeacherId}"
+        );
 
         $success = "Docente creado correctamente.";
         $success .= "<br><b>Contraseña temporal:</b> <code>" . h($plain) . "</code>";
@@ -211,6 +224,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="post" class="form-grid">
+      <?= csrf_input(); ?>
+
       <div class="field">
         <label>Nombre</label>
         <input name="name" required value="<?= h($_POST['name'] ?? '') ?>">

@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/../app/config/db.php';
 require __DIR__ . '/../app/middleware/auth.php';
+require __DIR__ . '/../app/helpers/csrf.php';
+
 
 requireRole('admin');
 requirePasswordChangeIfNeeded();
@@ -237,11 +239,11 @@ function h($v){
             <td><?= h($t['created_at']) ?></td>
             <td>
               <div class="actions">
-                <a class="btnD"
-                   href="teacher_reset.php?id=<?= (int)$t['id'] ?>"
-                   onclick="return confirm('¿Restablecer contraseña de este docente?');">
-                  Restablecer contraseña
-                </a>
+                <form method="post" action="teacher_reset.php" style="display:inline;">
+  <?= csrf_input() ?>
+  <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
+  <button class="btnD" type="submit">Restablecer contraseña</button>
+</form>
                 <a class="btnS" href="teacher_profile.php?id=<?= (int)$t['id'] ?>">Ver perfil</a>
               </div>
             </td>

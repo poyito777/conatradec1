@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/../app/config/db.php';
 require __DIR__ . '/../app/middleware/auth.php';
+require __DIR__ . '/../app/helpers/csrf.php';
 
 $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'");
 $adminCount = (int)$stmt->fetchColumn();
@@ -11,40 +12,179 @@ if ($adminCount === 0) {
 }
 
 if (isLogged()) {
-  // Si ya está logueado, respetar la regla de cambio obligatorio
-  if ((int)($_SESSION['user']['must_change_password'] ?? 0) === 1) {
-    header("Location: change_password.php"); exit;
-  }
-  header("Location: dashboard.php"); exit;
-}
-
-$error = "";
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $email = trim($_POST['email'] ?? '');
-  $password = (string)($_POST['password'] ?? '');
-
-  $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? AND is_active = 1 LIMIT 1");
-  $stmt->execute([$email]);
-  $user = $stmt->fetch();
-
-  if ($user && password_verify($password, $user['password_hash'])) {
-    $_SESSION['user'] = [
-      'id' => (int)$user['id'],
-      'name' => $user['name'],
-      'role' => $user['role'],
-      'must_change_password' => (int)($user['must_change_password'] ?? 0),
-    ];
-
-    if ((int)($user['must_change_password'] ?? 0) === 1) {
-      header("Location: change_password.php");
-      exit;
+    if ((int)($_SESSION['user']['must_change_password'] ?? 0) === 1) {
+        header("Location: change_password.php");
+        exit;
     }
     header("Location: dashboard.php");
     exit;
-  } else {
-    $error = "Credenciales incorrectas";
-  }
+}
+
+function h($v){
+    return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+}
+
+function getClientIp(): string
+{
+    $keys = [
+        'HTTP_CF_CONNECTING_IP',
+        'HTTP_X_FORWARDED_FOR',
+        'REMOTE_ADDR'
+    ];
+
+    foreach ($keys as $key) {
+        if (!empty($_SERVER[$key])) {
+            $value = trim((string)$_SERVER[$key]);
+
+            if ($key === 'HTTP_X_FORWARDED_FOR') {
+                $parts = explode(',', $value);
+                return trim($parts[0]);
+            }
+
+            return $value;
+        }
+    }
+
+    return '0.0.0.0';
+}
+
+function logActivity(PDO $pdo, ?int $userId, string $action, string $description, string $ip): void
+{
+    $stmt = $pdo->prepare("
+        INSERT INTO activity_logs (user_id, action, description, ip_address)
+        VALUES (?, ?, ?, ?)
+    ");
+    $stmt->execute([$userId, $action, $description, $ip]);
+}
+
+$error = "";
+$ip = getClientIp();
+
+$maxAttempts = 5;
+$lockMinutes = 15;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf_or_die();
+
+    $email = trim((string)($_POST['email'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
+
+    if ($email === '' || $password === '') {
+        $error = "Completá correo y contraseña.";
+    } else {
+        // Buscar registro de intentos para ese email + IP
+        $stmt = $pdo->prepare("
+            SELECT *
+            FROM login_attempts
+            WHERE email = ? AND ip_address = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$email, $ip]);
+        $attemptRow = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Si está bloqueado
+        if ($attemptRow && !empty($attemptRow['blocked_until']) && strtotime($attemptRow['blocked_until']) > time()) {
+            $remaining = max(1, (int)ceil((strtotime($attemptRow['blocked_until']) - time()) / 60));
+            $error = "Demasiados intentos fallidos. Intentá de nuevo en {$remaining} minuto(s).";
+
+            logActivity(
+                $pdo,
+                null,
+                'login_blocked',
+                "Intento bloqueado para {$email}",
+                $ip
+            );
+        } else {
+            // Buscar usuario
+            $stmt = $pdo->prepare("
+                SELECT *
+                FROM users
+                WHERE email = ? AND is_active = 1
+                LIMIT 1
+            ");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($user && password_verify($password, $user['password_hash'])) {
+                // Login correcto: limpiar intentos
+                $del = $pdo->prepare("
+                    DELETE FROM login_attempts
+                    WHERE email = ? AND ip_address = ?
+                ");
+                $del->execute([$email, $ip]);
+
+                session_regenerate_id(true);
+
+                $_SESSION['user'] = [
+                    'id' => (int)$user['id'],
+                    'name' => $user['name'],
+                    'role' => $user['role'],
+                    'must_change_password' => (int)($user['must_change_password'] ?? 0),
+                ];
+
+                logActivity(
+                    $pdo,
+                    (int)$user['id'],
+                    'login_success',
+                    "Inicio de sesión exitoso: {$email}",
+                    $ip
+                );
+
+                if ((int)($user['must_change_password'] ?? 0) === 1) {
+                    header("Location: change_password.php");
+                    exit;
+                }
+
+                header("Location: dashboard.php");
+                exit;
+            } else {
+                // Login fallido: registrar intento
+                if ($attemptRow) {
+                    $newAttempts = (int)$attemptRow['attempts'] + 1;
+                    $blockedUntil = null;
+
+                    if ($newAttempts >= $maxAttempts) {
+                        $blockedUntil = date('Y-m-d H:i:s', strtotime("+{$lockMinutes} minutes"));
+                    }
+
+                    $upd = $pdo->prepare("
+                        UPDATE login_attempts
+                        SET attempts = ?, last_attempt_at = NOW(), blocked_until = ?
+                        WHERE id = ?
+                    ");
+                    $upd->execute([
+                        $newAttempts,
+                        $blockedUntil,
+                        (int)$attemptRow['id']
+                    ]);
+                } else {
+                    $newAttempts = 1;
+                    $blockedUntil = null;
+
+                    $ins = $pdo->prepare("
+                        INSERT INTO login_attempts (email, ip_address, attempts, last_attempt_at, blocked_until)
+                        VALUES (?, ?, 1, NOW(), NULL)
+                    ");
+                    $ins->execute([$email, $ip]);
+                }
+
+                logActivity(
+                    $pdo,
+                    $user ? (int)$user['id'] : null,
+                    'login_failed',
+                    "Credenciales incorrectas para {$email}",
+                    $ip
+                );
+
+                if ($newAttempts >= $maxAttempts) {
+                    $error = "Demasiados intentos fallidos. Tu acceso fue bloqueado por {$lockMinutes} minutos.";
+                } else {
+                    $remainingAttempts = $maxAttempts - $newAttempts;
+                    $error = "Credenciales incorrectas. Te quedan {$remainingAttempts} intento(s).";
+                }
+            }
+        }
+    }
 }
 ?>
 <!doctype html>
@@ -69,10 +209,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <p>Ingresá con tu correo y contraseña.</p>
 
       <?php if (!empty($error)): ?>
-        <div class="alert"><?= htmlspecialchars($error) ?></div>
+        <div class="alert"><?= h($error) ?></div>
       <?php endif; ?>
 
       <form method="POST" autocomplete="off">
+        <?= csrf_input() ?>
+
         <div class="field">
           <label>Email</label>
           <input type="email" name="email" required placeholder="docente@conatradec.local">
@@ -86,19 +228,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button class="btn" type="submit">Entrar</button>
       </form>
 
-<div style="margin-top:14px;text-align:center;">
-  <a href="certificate_lookup.php" style="color:var(--muted);font-weight:700;text-decoration:none;">
-    ¿Sos estudiante? Descargá tu certificado aquí
-  </a>
-</div>
-
+      <div style="margin-top:14px;text-align:center;">
+        <a href="certificate_lookup.php" style="color:var(--muted);font-weight:700;text-decoration:none;">
+          ¿Sos estudiante? Descargá tu certificado aquí
+        </a>
+      </div>
 
       <div class="footer-links">
-        <span class="small">© <?= date('Y') ?> CONATRADEC</span>
+        <span class="small">©️ <?= date('Y') ?> CONATRADEC</span>
         <a class="small" href="logout.php">Limpiar sesión</a>
-
-
-        
       </div>
     </div>
   </div>

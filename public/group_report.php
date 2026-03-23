@@ -68,16 +68,19 @@ $stmt = $pdo->prepare("
         s.id,
         s.student_code,
         s.full_name,
-        s.school,
-        s.status,
+        sc.name AS school_name,
         sg.exam1,
         sg.exam2,
         sg.exam3,
         sg.exam4,
         sg.exam5,
-        sg.final_grade
+        sg.final_grade,
+        sg.status AS group_status
     FROM group_students gs
-    JOIN students s ON s.id = gs.student_id
+    JOIN students s
+        ON s.id = gs.student_id
+    LEFT JOIN schools sc
+        ON sc.id = s.school_id
     LEFT JOIN student_grades sg
         ON sg.group_id = gs.group_id
        AND sg.student_id = gs.student_id
@@ -128,7 +131,7 @@ $sumFinalGrades = 0;
 $countFinalGrades = 0;
 
 foreach ($students as $s) {
-    $status = $s['status'] ?? 'pendiente';
+    $status = $s['group_status'] ?? 'pendiente';
 
     if ($status === 'aprobado') $totalApproved++;
     elseif ($status === 'desaprobado') $totalFailed++;
@@ -615,12 +618,13 @@ $groupAverage = $countFinalGrades > 0 ? round($sumFinalGrades / $countFinalGrade
                 $attendancePercent = $attendance['percent'] ?? null;
                 $attendancePresent = $attendance['total_present'] ?? 0;
                 $attendanceTotal = $attendance['total_records'] ?? 0;
+                $displayStatus = $s['group_status'] ?: 'pendiente';
               ?>
               <tr>
                 <td>
                   <div class="student-name"><?= h($s['full_name']) ?></div>
                   <div class="small">
-                    <?= h($s['student_code'] ?: '—') ?> • <?= h($s['school'] ?: '—') ?>
+                    <?= h($s['student_code'] ?: '—') ?> • <?= h($s['school_name'] ?: '—') ?>
                   </div>
                 </td>
 
@@ -638,8 +642,8 @@ $groupAverage = $countFinalGrades > 0 ? round($sumFinalGrades / $countFinalGrade
                 <td><?= h($s['exam5'] ?? '—') ?></td>
                 <td><strong><?= h($s['final_grade'] ?? '—') ?></strong></td>
                 <td>
-                  <span class="status-pill <?= h(statusClass($s['status'] ?: 'pendiente')) ?>">
-                    <?= h($s['status'] ?: 'pendiente') ?>
+                  <span class="status-pill <?= h(statusClass($displayStatus)) ?>">
+                    <?= h($displayStatus) ?>
                   </span>
                 </td>
               </tr>

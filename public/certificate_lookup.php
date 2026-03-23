@@ -7,6 +7,7 @@ function h($v){
 
 $error = '';
 $student = null;
+$certificates = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $code = trim((string)($_POST['student_code'] ?? ''));
@@ -15,9 +16,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $error = 'Ingresá tu código de estudiante.';
   } else {
     $stmt = $pdo->prepare("
-      SELECT id, full_name, student_code, course_type, course_level, school, final_grade
-      FROM students
-      WHERE student_code = ?
+      SELECT
+        s.id,
+        s.full_name,
+        s.student_code,
+        sc.name AS school_name
+      FROM students s
+      LEFT JOIN schools sc ON sc.id = s.school_id
+      WHERE s.student_code = ?
       LIMIT 1
     ");
     $stmt->execute([$code]);
@@ -25,9 +31,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$student) {
       $error = 'No se encontró un estudiante con ese código.';
-    } elseif ($student['final_grade'] === null || (float)$student['final_grade'] < 60) {
-      $error = 'Tu certificado aún no está disponible. Consultá con tu docente o administración.';
-      $student = null;
+    } else {
+      $stmt = $pdo->prepare("
+        SELECT
+          g.id AS group_id,
+          g.group_code,
+          g.name AS group_name,
+          g.course_type,
+          g.course_level,
+          g.start_date,
+          g.end_date,
+          sg.final_grade,
+          sg.status AS academic_status
+        FROM group_students gs
+        JOIN groups_table g
+          ON g.id = gs.group_id
+        JOIN student_grades sg
+          ON sg.group_id = gs.group_id
+         AND sg.student_id = gs.student_id
+        WHERE gs.student_id = ?
+          AND sg.status = 'aprobado'
+          AND sg.final_grade >= 60
+        ORDER BY g.created_at DESC, g.id DESC
+      ");
+      $stmt->execute([(int)$student['id']]);
+      $certificates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+      if (!$certificates) {
+        $error = 'Tu certificado aún no está disponible. Consultá con tu docente o administración.';
+        $student = null;
+      }
     }
   }
 }
@@ -63,7 +96,7 @@ function levelLabel($l){
 
     .card{
       width:100%;
-      max-width:620px;
+      max-width:720px;
       background:linear-gradient(180deg,var(--card2),var(--card));
       border:1px solid var(--line);
       border-radius:24px;
@@ -163,6 +196,20 @@ function levelLabel($l){
       color:#e5e7eb;
     }
 
+    .cert-list{
+      margin-top:14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .cert-item{
+      padding:14px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.05);
+    }
+
     .download{
       display:inline-flex;
       align-items:center;
@@ -191,7 +238,7 @@ function levelLabel($l){
       <img src="/docentes/assets/images/1.png" alt="CONATRADEC">
       <div>
         <h1>Descargar certificado</h1>
-        <p class="sub">Ingresá tu código de estudiante para consultar tu certificado.</p>
+        <p class="sub">Ingresá tu código de estudiante para consultar tus certificados disponibles.</p>
       </div>
     </div>
 
@@ -214,22 +261,32 @@ function levelLabel($l){
       <div class="alert"><?= h($error) ?></div>
     <?php endif; ?>
 
-    <?php if ($student): ?>
+    <?php if ($student && $certificates): ?>
       <div class="ok">
-        <h3>Certificado disponible</h3>
+        <h3>Certificados disponibles</h3>
         <p><b>Estudiante:</b> <?= h($student['full_name']) ?></p>
         <p><b>Código:</b> <?= h($student['student_code']) ?></p>
-        <p><b>Curso:</b> <?= h(courseLabel($student['course_type'])) ?> / <?= h(levelLabel($student['course_level'])) ?></p>
-        <p><b>Escuela:</b> <?= h($student['school'] ?: '—') ?></p>
+        <p><b>Escuela:</b> <?= h($student['school_name'] ?: '—') ?></p>
 
-        <a class="download" href="certificate_download.php?code=<?= urlencode($student['student_code']) ?>">
-          Descargar certificado
-        </a>
+        <div class="cert-list">
+          <?php foreach ($certificates as $c): ?>
+            <div class="cert-item">
+              <p><b>Grupo:</b> <?= h($c['group_code']) ?> • <?= h($c['group_name']) ?></p>
+              <p><b>Curso:</b> <?= h(courseLabel($c['course_type'])) ?> / <?= h(levelLabel($c['course_level'])) ?></p>
+              <p><b>Nota final:</b> <?= h($c['final_grade']) ?></p>
+              <p><b>Fechas:</b> <?= h($c['start_date'] ?: '—') ?> a <?= h($c['end_date'] ?: '—') ?></p>
+
+              <a class="download" href="certificate_download.php?student_id=<?= (int)$student['id'] ?>&group_id=<?= (int)$c['group_id'] ?>">
+                Descargar certificado
+              </a>
+            </div>
+          <?php endforeach; ?>
+        </div>
       </div>
     <?php endif; ?>
 
     <div class="hint">
-      El certificado estará disponible cuando el estudiante haya cumplido las condiciones académicas establecidas por CONATRADEC.
+      El certificado estará disponible únicamente para los grupos donde el estudiante haya aprobado.
     </div>
   </section>
 </body>

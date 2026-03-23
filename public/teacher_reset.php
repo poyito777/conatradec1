@@ -1,26 +1,48 @@
 <?php
 require __DIR__ . '/../app/config/db.php';
 require __DIR__ . '/../app/middleware/auth.php';
+require __DIR__ . '/../app/helpers/csrf.php';
+require __DIR__ . '/../app/helpers/log.php';
 
 requireRole('admin');
 requirePasswordChangeIfNeeded();
 
-$id = (int)($_GET['id'] ?? 0);
-if ($id <= 0) { http_response_code(400); exit("Bad request"); }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+  http_response_code(405);
+  exit('Método no permitido');
+}
+
+verify_csrf_or_die();
+
+$id = (int)($_POST['id'] ?? 0);
+if ($id <= 0) {
+  http_response_code(400);
+  exit("Bad request");
+}
 
 $st = $pdo->prepare("SELECT id, name, email, role FROM users WHERE id=? LIMIT 1");
 $st->execute([$id]);
-$u = $st->fetch();
+$u = $st->fetch(PDO::FETCH_ASSOC);
 
-if (!$u) { http_response_code(404); exit("No existe"); }
-if ($u['role'] !== 'teacher') { http_response_code(403); exit("Solo docentes."); }
+if (!$u) {
+  http_response_code(404);
+  exit("No existe");
+}
 
-function gen_password(int $len=10): string {
+if (($u['role'] ?? '') !== 'teacher') {
+  http_response_code(403);
+  exit("Solo docentes.");
+}
+
+function gen_password(int $len = 10): string {
   $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#';
   $p = '';
-  for($i=0; $i<$len; $i++) {
-    $p .= $alphabet[random_int(0, strlen($alphabet)-1)];
+  $max = strlen($alphabet) - 1;
+
+  for ($i = 0; $i < $len; $i++) {
+    $p .= $alphabet[random_int(0, $max)];
   }
+
   return $p;
 }
 
@@ -32,8 +54,19 @@ $newPlain = gen_password(10);
 $newHash  = password_hash($newPlain, PASSWORD_DEFAULT);
 
 // must_change_password = 1
-$up = $pdo->prepare("UPDATE users SET password_hash=?, must_change_password=1 WHERE id=?");
+$up = $pdo->prepare("
+  UPDATE users
+  SET password_hash = ?, must_change_password = 1
+  WHERE id = ?
+");
 $up->execute([$newHash, $id]);
+
+log_activity(
+  $pdo,
+  (int)$_SESSION['user']['id'],
+  'password_reset',
+  "Se restableció la contraseña del docente {$u['name']} ({$u['email']}) con ID {$u['id']}"
+);
 ?>
 <!doctype html>
 <html lang="es">
@@ -63,10 +96,6 @@ $up->execute([$newHash, $id]);
       align-items:flex-start;
       gap:14px;
       flex-wrap:wrap;
-    }
-
-    .muted{
-      color:var(--muted);
     }
 
     .box{
@@ -196,6 +225,8 @@ $up->execute([$newHash, $id]);
 <script>
 function toggleSidebar() {
   const sidebar = document.getElementById('appSidebar');
+  if (!sidebar) return;
+
   if (window.innerWidth <= 960) {
     sidebar.classList.toggle('open');
   } else {
@@ -203,7 +234,5 @@ function toggleSidebar() {
   }
 }
 </script>
-</div>
-</div>
 </body>
 </html>

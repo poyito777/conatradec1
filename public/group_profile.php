@@ -24,6 +24,7 @@ function levelLabel($l){
 function statusClass($status){
   if ($status === 'activo') return 'ok';
   if ($status === 'finalizado') return 'bad';
+  if ($status === 'cancelado') return 'cancel';
   return 'pending';
 }
 
@@ -64,7 +65,11 @@ if (($me['role'] ?? '') === 'teacher' && (int)$g['teacher_id'] !== (int)$me['id'
 // =====================================================
 // Total estudiantes
 // =====================================================
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM group_students WHERE group_id = ?");
+$stmt = $pdo->prepare("
+  SELECT COUNT(*)
+  FROM group_students
+  WHERE group_id = ?
+");
 $stmt->execute([$id]);
 $totalStudents = (int)$stmt->fetchColumn();
 
@@ -81,7 +86,7 @@ $avg = $stmt->fetchColumn();
 $avg = $avg !== null ? round((float)$avg, 2) : null;
 
 // =====================================================
-// Aprobados / desaprobados / pendientes según estado real
+// Estados académicos de estudiantes del grupo
 // =====================================================
 $stmt = $pdo->prepare("
   SELECT s.status, COUNT(*) AS total
@@ -98,9 +103,10 @@ $failed = 0;
 $pending = 0;
 
 foreach ($statusRows as $row) {
-  if (($row['status'] ?? '') === 'aprobado') {
+  $status = (string)($row['status'] ?? '');
+  if ($status === 'aprobado') {
     $approved = (int)$row['total'];
-  } elseif (($row['status'] ?? '') === 'desaprobado') {
+  } elseif ($status === 'desaprobado') {
     $failed = (int)$row['total'];
   } else {
     $pending = (int)$row['total'];
@@ -335,6 +341,12 @@ tr:hover{
   background:rgba(239,68,68,.10);
 }
 
+.pill.cancel{
+  border-color:rgba(148,163,184,.35);
+  color:#cbd5e1;
+  background:rgba(148,163,184,.10);
+}
+
 .pill.pending{
   border-color:rgba(245,158,11,.35);
   color:#f59e0b;
@@ -436,7 +448,7 @@ tr:hover{
 
     <div class="kv col6">
       <p class="k">Departamento</p>
-      <p class="v"><?= h($g['department'] ?: '—') ?></p>
+      <p class="v"><?= h($g['department'] ?? '—') ?></p>
     </div>
 
     <div class="kv col6">

@@ -60,10 +60,11 @@ $stmt = $pdo->prepare("
     SELECT
         s.full_name,
         s.student_code,
-        s.department,
+        d.name AS department_name,
         ai.present
     FROM attendance_items ai
     JOIN students s ON s.id = ai.student_id
+    LEFT JOIN departments d ON d.id = s.department_id
     WHERE ai.attendance_id = ?
     ORDER BY s.full_name ASC
 ");
@@ -662,7 +663,7 @@ $totalStudents = count($items);
                   <div class="name"><?= h($item['full_name']) ?></div>
                 </td>
                 <td><?= h($item['student_code'] ?: '—') ?></td>
-                <td><?= h($item['department'] ?: '—') ?></td>
+                <td><?= h($item['department_name'] ?: '—') ?></td>
                 <td>
                   <?php if ((int)$item['present'] === 1): ?>
                     <span class="status-badge ok">✔ Presente</span>

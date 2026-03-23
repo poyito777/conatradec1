@@ -41,17 +41,17 @@ if ($courseLevel !== '') {
 }
 
 if ($department !== '') {
-  $where[] = "s.department LIKE :dept";
+  $where[] = "d.name LIKE :dept";
   $params[':dept'] = "%{$department}%";
 }
 
 if ($municipality !== '') {
-  $where[] = "s.municipality LIKE :muni";
+  $where[] = "m.name LIKE :muni";
   $params[':muni'] = "%{$municipality}%";
 }
 
 if ($organizationType !== '') {
-  $where[] = "s.organization_type = :otype";
+  $where[] = "so.organization_type = :otype";
   $params[':otype'] = $organizationType;
 }
 
@@ -60,14 +60,14 @@ if ($q !== '') {
   $where[] = "(
     s.full_name LIKE :q OR
     s.student_code LIKE :q OR
-    s.school LIKE :q OR
+    sc.name LIKE :q OR
     s.cedula LIKE :q OR
     s.phone LIKE :q OR
-    s.department LIKE :q OR
-    s.municipality LIKE :q OR
-    s.organization_name LIKE :q OR
-    s.organization_location LIKE :q OR
-    s.characterization LIKE :q OR
+    d.name LIKE :q OR
+    m.name LIKE :q OR
+    so.organization_name LIKE :q OR
+    so.organization_location LIKE :q OR
+    so.characterization LIKE :q OR
     s.profession LIKE :q
   )";
   $params[':q'] = "%{$q}%";
@@ -87,9 +87,22 @@ if (($me['role'] ?? '') === 'admin') {
 }
 
 $sql = "
-SELECT s.*, u.name AS teacher_name
+SELECT
+  s.*,
+  u.name AS teacher_name,
+  sc.name AS school_name,
+  d.name AS department_name,
+  m.name AS municipality_name,
+  so.organization_type,
+  so.organization_name,
+  so.organization_location,
+  so.characterization
 FROM students s
 JOIN users u ON u.id = s.teacher_id
+LEFT JOIN schools sc ON sc.id = s.school_id
+LEFT JOIN departments d ON d.id = s.department_id
+LEFT JOIN municipalities m ON m.id = s.municipality_id
+LEFT JOIN student_organizations so ON so.student_id = s.id
 {$whereSql}
 ORDER BY s.id DESC
 LIMIT 800
@@ -209,10 +222,15 @@ function organizationTypeLabel($v){
       text-decoration:none;
     }
 
+    .table-wrap{
+      overflow-x:auto;
+      margin-top:14px;
+    }
+
     table{
       width:100%;
+      min-width:1300px;
       border-collapse:collapse;
-      margin-top:14px;
     }
 
     th, td{
@@ -381,80 +399,85 @@ function organizationTypeLabel($v){
       </div>
     </form>
 
-    <table>
-      <thead>
-        <tr>
-          <th style="width:80px;">ID</th>
-          <th style="width:150px;">Código</th>
-          <th>Nombre / Escuela</th>
-          <th>Curso / Nivel</th>
-          <th>Sexo</th>
-          <th>Ubicación</th>
-          <th>Organización</th>
-          <th class="nowrap">Teléfono</th>
-          <?php if ($me['role']==='admin'): ?><th>Docente</th><?php endif; ?>
-          <th style="width:240px;">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <?php foreach($rows as $r): ?>
+    <div class="table-wrap">
+      <table>
+        <thead>
           <tr>
-            <td><?= (int)$r['id'] ?></td>
+            <th style="width:80px;">ID</th>
+            <th style="width:150px;">Código</th>
+            <th>Nombre / Escuela</th>
+            <th>Curso / Nivel</th>
+            <th>Sexo</th>
+            <th>Ubicación</th>
+            <th>Organización</th>
+            <th class="nowrap">Teléfono</th>
+            <?php if ($me['role']==='admin'): ?><th>Docente</th><?php endif; ?>
+            <th style="width:240px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach($rows as $r): ?>
+            <tr>
+              <td><?= (int)$r['id'] ?></td>
 
-            <td class="nowrap">
-              <span class="tag"><?= h($r['student_code'] ?: '—') ?></span>
-            </td>
+              <td class="nowrap">
+                <span class="tag"><?= h($r['student_code'] ?: '—') ?></span>
+              </td>
 
-            <td>
-              <div style="font-weight:800; color:#e5e7eb;"><?= h($r['full_name']) ?></div>
-              <div class="small"><?= h($r['school'] ?: '—') ?></div>
-              <?php if (!empty($r['profession'])): ?>
-                <div class="small">Profesión: <?= h($r['profession']) ?></div>
+              <td>
+                <div style="font-weight:800; color:#e5e7eb;"><?= h($r['full_name']) ?></div>
+                <div class="small"><?= h($r['school_name'] ?: '—') ?></div>
+                <?php if (!empty($r['profession'])): ?>
+                  <div class="small">Profesión: <?= h($r['profession']) ?></div>
+                <?php endif; ?>
+              </td>
+
+              <td>
+                <div style="font-weight:700;"><?= h(courseLabel($r['course_type'])) ?></div>
+                <div class="small"><?= h(levelLabel($r['course_level'])) ?></div>
+              </td>
+
+              <td class="muted"><?= h(sexLabel($r['sex'] ?? '')) ?></td>
+
+              <td>
+                <div class="small"><?= h($r['department_name'] ?: '—') ?></div>
+                <div class="small"><?= h($r['municipality_name'] ?: '—') ?></div>
+                <?php if (!empty($r['community'])): ?>
+                  <div class="small"><?= h($r['community']) ?></div>
+                <?php endif; ?>
+              </td>
+
+              <td>
+                <div class="small"><?= h(organizationTypeLabel($r['organization_type'] ?? '')) ?></div>
+                <div class="small"><?= h($r['organization_name'] ?: '—') ?></div>
+              </td>
+
+              <td class="muted nowrap"><?= h($r['phone'] ?: '—') ?></td>
+
+              <?php if ($me['role']==='admin'): ?>
+                <td class="muted"><?= h($r['teacher_name']) ?></td>
               <?php endif; ?>
-            </td>
 
-            <td>
-              <div style="font-weight:700;"><?= h(courseLabel($r['course_type'])) ?></div>
-              <div class="small"><?= h(levelLabel($r['course_level'])) ?></div>
-            </td>
+              <td>
+                <div class="actions">
+                  <a class="btnG" href="student_profile.php?id=<?= (int)$r['id'] ?>">Ver</a>
+                  <a class="btnG" href="student_form.php?id=<?= (int)$r['id'] ?>">Editar</a>
+                  <a class="btnG" href="student_letter.php?id=<?= (int)$r['id'] ?>" target="_blank">Constancia</a>
+                </div>
+              </td>
+            </tr>
+          <?php endforeach; ?>
 
-            <td class="muted"><?= h(sexLabel($r['sex'] ?? '')) ?></td>
-
-            <td>
-              <div class="small"><?= h($r['department'] ?: '—') ?></div>
-              <div class="small"><?= h($r['municipality'] ?: '—') ?></div>
-            </td>
-
-            <td>
-              <div class="small"><?= h(organizationTypeLabel($r['organization_type'] ?? '')) ?></div>
-              <div class="small"><?= h($r['organization_name'] ?: '—') ?></div>
-            </td>
-
-            <td class="muted nowrap"><?= h($r['phone'] ?: '—') ?></td>
-
-            <?php if ($me['role']==='admin'): ?>
-              <td class="muted"><?= h($r['teacher_name']) ?></td>
-            <?php endif; ?>
-
-            <td>
-              <div class="actions">
-                <a class="btnG" href="student_profile.php?id=<?= (int)$r['id'] ?>">Ver</a>
-                <a class="btnG" href="student_form.php?id=<?= (int)$r['id'] ?>">Editar</a>
-                <a class="btnG" href="student_letter.php?id=<?= (int)$r['id'] ?>" target="_blank">Constancia</a>
-              </div>
-            </td>
-          </tr>
-        <?php endforeach; ?>
-
-        <?php if(!$rows): ?>
-          <tr>
-            <td colspan="<?= $me['role']==='admin' ? 10 : 9 ?>" class="muted">
-              No hay estudiantes para mostrar.
-            </td>
-          </tr>
-        <?php endif; ?>
-      </tbody>
-    </table>
+          <?php if(!$rows): ?>
+            <tr>
+              <td colspan="<?= $me['role']==='admin' ? 10 : 9 ?>" class="muted">
+                No hay estudiantes para mostrar.
+              </td>
+            </tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
   </section>
 </main>
 
@@ -468,7 +491,5 @@ function toggleSidebar() {
   }
 }
 </script>
-</div>
-</div>
 </body>
 </html>

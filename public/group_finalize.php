@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/../app/config/db.php';
 require __DIR__ . '/../app/middleware/auth.php';
+require __DIR__ . '/../app/helpers/csrf.php';
+require __DIR__ . '/../app/helpers/log.php';
 
 requireLogin();
 requirePasswordChangeIfNeeded();
@@ -11,6 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("Location: groups.php");
     exit;
 }
+
+verify_csrf_or_die();
 
 $id = (int)($_POST['id'] ?? 0);
 
@@ -40,6 +44,13 @@ if (($me['role'] ?? '') === 'teacher' && (int)$group['teacher_id'] !== (int)$me[
 if (($group['status'] ?? '') !== 'finalizado') {
     $upd = $pdo->prepare("UPDATE groups_table SET status = 'finalizado' WHERE id = ?");
     $upd->execute([$id]);
+
+    log_activity(
+        $pdo,
+        (int)$_SESSION['user']['id'],
+        'group_finalized',
+        "Se finalizó el grupo {$group['group_code']} ({$group['name']}) con ID {$group['id']}"
+    );
 }
 
 header("Location: groups.php?finalized=1");

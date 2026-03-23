@@ -52,23 +52,36 @@ while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
 $totalStudents = $statusData['pendiente'] + $statusData['aprobado'] + $statusData['desaprobado'];
 
 // Departamentos
-$stmt = $pdo->prepare("
-  SELECT department, COUNT(*) total
-  FROM students
-  $where
-  GROUP BY department
-  ORDER BY total DESC
-");
-$stmt->execute($params);
+if (($me['role'] ?? '') === 'teacher') {
+  $stmt = $pdo->prepare("
+    SELECT d.name AS department_name, COUNT(*) total
+    FROM students s
+    LEFT JOIN departments d ON d.id = s.department_id
+    WHERE s.teacher_id = ?
+    GROUP BY d.id, d.name
+    ORDER BY total DESC
+  ");
+  $stmt->execute([(int)$me['id']]);
+} else {
+  $stmt = $pdo->prepare("
+    SELECT d.name AS department_name, COUNT(*) total
+    FROM students s
+    LEFT JOIN departments d ON d.id = s.department_id
+    GROUP BY d.id, d.name
+    ORDER BY total DESC
+  ");
+  $stmt->execute();
+}
 
 $deptLabels = [];
 $deptTotals = [];
 while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
-  $dept = trim((string)($r['department'] ?? ''));
-  if ($dept !== '') {
-    $deptLabels[] = $dept;
-    $deptTotals[] = (int)$r['total'];
+  $dept = trim((string)($r['department_name'] ?? ''));
+  if ($dept === '') {
+    $dept = 'Sin datos';
   }
+  $deptLabels[] = $dept;
+  $deptTotals[] = (int)$r['total'];
 }
 
 if (!$deptLabels) {
@@ -286,7 +299,7 @@ if (!$deptLabels) {
           <p class="chartTitle">Estudiantes por departamento</p>
           <canvas id="deptChart" height="140"></canvas>
           <div class="small" style="margin-top:8px;">
-            Tip: para que salga perfecto, escriban el departamento siempre igual.
+            Datos obtenidos desde el catálogo de departamentos.
           </div>
         </div>
       </div>
@@ -390,7 +403,5 @@ new Chart(document.getElementById('deptChart'), {
   }
 });
 </script>
-</div>
-</div>
 </body>
 </html>
