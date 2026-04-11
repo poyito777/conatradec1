@@ -270,6 +270,12 @@ function isActive($file, $current) {
           </a>
         <?php endif; ?>
 
+        <a class="side-link <?= isActive('students_historical.php', $current) ?>" href="students_historical.php">
+  <span class="nav-icon">🗂️</span>
+  <span class="nav-label">Estudiantes históricos</span>
+</a>
+
+
         <a class="side-link <?= isActive('change_password.php', $current) ?>" href="change_password.php">
           <span class="nav-icon">🔒</span>
           <span class="nav-label">Contraseña</span>

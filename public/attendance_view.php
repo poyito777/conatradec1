@@ -367,24 +367,48 @@ $totalStudents = count($items);
     }
 
     @page{
-      size: landscape;
-      margin: 10mm;
+      size: letter landscape;
+      margin: 12mm;
     }
 
     @media print{
-      body{
+      html, body{
+        width:100%;
+        height:auto;
         background:#fff !important;
-        color:#000 !important;
+        color:#111 !important;
+        margin:0 !important;
+        padding:0 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
 
+      /* Ocultar navegación y controles externos */
       .actions,
       .sidebar,
-      #appSidebar{
+      #appSidebar,
+      .topbar,
+      .mobile-topbar,
+      .menu-toggle,
+      .hamburger,
+      .nav-toggle,
+      .toggle-btn,
+      .sidebar-toggle,
+      .floating-menu,
+      button.btn2,
+      a.btnG,
+      a.btnS{
+        display:none !important;
+      }
+
+      body > aside,
+      body > nav,
+      body > header{
         display:none !important;
       }
 
       .container{
-        max-width:none !important;
+        max-width:100% !important;
         width:100% !important;
         padding:0 !important;
         margin:0 !important;
@@ -394,16 +418,18 @@ $totalStudents = count($items);
         box-shadow:none !important;
         border-radius:0 !important;
         background:#fff !important;
-        color:#000 !important;
+        color:#111 !important;
+        border:none !important;
+        overflow:visible !important;
       }
 
       .head{
-        padding:0 0 8px !important;
+        padding:0 0 10px !important;
         border-bottom:none !important;
       }
 
       .brand-row{
-        margin-bottom:6px !important;
+        margin-bottom:8px !important;
       }
 
       .brand{
@@ -417,79 +443,83 @@ $totalStudents = count($items);
       .brand-text h2{
         font-size:18px !important;
         margin:0 0 4px !important;
-        color:#000 !important;
+        color:#111 !important;
       }
 
       .brand-text p{
         font-size:12px !important;
-        color:#444 !important;
+        color:#555 !important;
       }
 
       .meta{
         grid-template-columns:repeat(4,1fr) !important;
-        gap:6px !important;
+        gap:8px !important;
         margin-top:8px !important;
-        padding:8px !important;
-        border:1px solid #bbb !important;
-        border-radius:8px !important;
-        background:#fff !important;
+        padding:10px !important;
+        border:1px solid #d9d9d9 !important;
+        border-radius:10px !important;
+        background:#fafafa !important;
         page-break-inside:avoid;
       }
 
       .meta-item .k{
-        color:#444 !important;
+        color:#555 !important;
         font-size:11px !important;
       }
 
       .meta-item .v{
-        color:#000 !important;
+        color:#111 !important;
         font-size:12px !important;
         font-weight:700 !important;
       }
 
       .summary{
         grid-template-columns:repeat(3,1fr) !important;
-        gap:6px !important;
-        margin-top:8px !important;
+        gap:8px !important;
+        margin-top:10px !important;
         page-break-inside:avoid;
       }
 
       .sum-card{
-        padding:8px !important;
-        border:1px solid #bbb !important;
-        border-radius:8px !important;
-        background:#fff !important;
+        padding:10px !important;
+        border:1px solid #d9d9d9 !important;
+        border-radius:10px !important;
+        background:#fafafa !important;
       }
 
       .sum-card .k{
-        color:#444 !important;
+        color:#555 !important;
         font-size:11px !important;
       }
 
       .sum-card .v{
-        color:#000 !important;
+        color:#111 !important;
         font-size:18px !important;
       }
 
-      .sum-card.ok,
+      .sum-card.ok{
+        background:#eef8f0 !important;
+        border-color:#b7d7be !important;
+      }
+
       .sum-card.bad{
-        background:#fff !important;
-        border-color:#bbb !important;
+        background:#fdeeee !important;
+        border-color:#e2bcbc !important;
       }
 
       .table-wrap{
-        padding:8px 0 0 !important;
+        padding:10px 0 0 !important;
         overflow:visible !important;
       }
 
       table{
         width:100% !important;
+        min-width:0 !important;
         border-collapse:collapse !important;
         border-spacing:0 !important;
-        border:1px solid #bbb !important;
+        border:1px solid #d9d9d9 !important;
         border-radius:0 !important;
         table-layout:fixed !important;
-        min-width:0 !important;
       }
 
       thead{
@@ -502,21 +532,22 @@ $totalStudents = count($items);
       }
 
       thead th{
-        background:#fff !important;
-        color:#000 !important;
-        border:1px solid #bbb !important;
-        padding:6px 7px !important;
-        font-size:11px !important;
+        background:#f3f3f3 !important;
+        color:#222 !important;
+        border:1px solid #d9d9d9 !important;
+        padding:7px 6px !important;
+        font-size:10px !important;
       }
 
       tbody td{
         background:#fff !important;
-        color:#000 !important;
-        border:1px solid #bbb !important;
-        padding:6px 7px !important;
-        font-size:11px !important;
+        color:#111 !important;
+        border:1px solid #d9d9d9 !important;
+        padding:7px 6px !important;
+        font-size:10px !important;
         vertical-align:top !important;
-        word-wrap:break-word;
+        word-break:break-word !important;
+        overflow-wrap:break-word !important;
       }
 
       tbody tr:nth-child(even) td{
@@ -525,44 +556,48 @@ $totalStudents = count($items);
 
       .num,
       .name{
-        color:#000 !important;
+        color:#111 !important;
       }
 
       .muted{
-        color:#444 !important;
-        font-size:10px !important;
+        color:#555 !important;
+        font-size:9px !important;
       }
 
       .status-badge{
         min-width:auto !important;
-        padding:4px 8px !important;
-        border:1px solid #999 !important;
-        background:#fff !important;
-        color:#000 !important;
-        font-size:10px !important;
+        padding:3px 7px !important;
+        border-radius:999px !important;
+        font-size:9px !important;
+        font-weight:700 !important;
       }
 
-      .status-badge.ok,
+      .status-badge.ok{
+        background:#eef8f0 !important;
+        color:#1f5d2b !important;
+        border:1px solid #b7d7be !important;
+      }
+
       .status-badge.bad{
-        background:#fff !important;
-        color:#000 !important;
-        border-color:#999 !important;
+        background:#fdeeee !important;
+        color:#8a2f2f !important;
+        border:1px solid #e2bcbc !important;
       }
 
       .footer{
-        padding:12px 0 0 !important;
+        padding:14px 0 0 !important;
       }
 
       .signature{
         width:260px !important;
         margin-top:20px !important;
-        color:#000 !important;
+        color:#111 !important;
         font-size:12px !important;
         border-top:1px solid #777 !important;
       }
 
       .empty{
-        color:#000 !important;
+        color:#111 !important;
         background:#fff !important;
       }
     }
@@ -694,6 +729,8 @@ $totalStudents = count($items);
 <script>
 function toggleSidebar() {
   const sidebar = document.getElementById('appSidebar');
+  if (!sidebar) return;
+
   if (window.innerWidth <= 960) {
     sidebar.classList.toggle('open');
   } else {

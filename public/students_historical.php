@@ -15,7 +15,7 @@ $department = trim($_GET['department'] ?? '');
 $municipality = trim($_GET['municipality'] ?? '');
 $organizationType = trim($_GET['organization_type'] ?? '');
 
-$where = ["s.is_historical = 0 "];
+$where = ["s.is_historical = 1"];
 $params = [];
 
 // Docente solo ve los suyos
@@ -139,12 +139,18 @@ function organizationTypeLabel($v){
   if ($v === 'productor') return 'Productor';
   return '—';
 }
+
+function statusClass($status){
+  if ($status === 'aprobado') return 'ok';
+  if ($status === 'desaprobado') return 'bad';
+  return 'pending';
+}
 ?>
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Estudiantes</title>
+  <title>Estudiantes históricos</title>
   <link rel="stylesheet" href="/docentes/assets/css/app.css">
   <style>
     .container{
@@ -229,7 +235,7 @@ function organizationTypeLabel($v){
 
     table{
       width:100%;
-      min-width:1300px;
+      min-width:1380px;
       border-collapse:collapse;
     }
 
@@ -299,6 +305,37 @@ function organizationTypeLabel($v){
       color:#e5e7eb;
       background:rgba(255,255,255,.04);
     }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:110px;
+      padding:8px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:800;
+      text-transform:capitalize;
+      border:1px solid var(--line);
+    }
+
+    .status-pill.ok{
+      color:#22c55e;
+      border-color:rgba(34,197,94,.35);
+      background:rgba(34,197,94,.10);
+    }
+
+    .status-pill.bad{
+      color:#ef4444;
+      border-color:rgba(239,68,68,.35);
+      background:rgba(239,68,68,.10);
+    }
+
+    .status-pill.pending{
+      color:#f59e0b;
+      border-color:rgba(245,158,11,.35);
+      background:rgba(245,158,11,.10);
+    }
   </style>
 </head>
 <body>
@@ -308,9 +345,9 @@ function organizationTypeLabel($v){
   <section class="panel">
     <div class="toolbar">
       <div>
-        <h2 style="margin:0 0 6px;">Estudiantes</h2>
+        <h2 style="margin:0 0 6px;">Estudiantes históricos</h2>
         <p style="margin:0;color:var(--muted);">
-          <?= ($me['role'] === 'admin') ? 'Vista global (admin)' : 'Tus estudiantes (docente)' ?>
+          Registro de estudiantes de años anteriores.
         </p>
 
         <div class="stats">
@@ -324,7 +361,6 @@ function organizationTypeLabel($v){
       </div>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <a class="btnS" href="student_form.php">+ Agregar estudiante</a>
         <a class="btnS" href="students_export.php?<?= http_build_query($_GET) ?>">Descargar CSV</a>
       </div>
     </div>
@@ -395,7 +431,7 @@ function organizationTypeLabel($v){
       </div>
 
       <div class="field" style="min-width:140px">
-        <a class="btnD" href="students.php">Limpiar</a>
+        <a class="btnD" href="students_historical.php">Limpiar</a>
       </div>
     </form>
 
@@ -407,12 +443,14 @@ function organizationTypeLabel($v){
             <th style="width:150px;">Código</th>
             <th>Nombre / Escuela</th>
             <th>Curso / Nivel</th>
+            <th>Estado</th>
+            <th>Nota final</th>
             <th>Sexo</th>
             <th>Ubicación</th>
             <th>Organización</th>
             <th class="nowrap">Teléfono</th>
             <?php if ($me['role']==='admin'): ?><th>Docente</th><?php endif; ?>
-            <th style="width:240px;">Acciones</th>
+            <th style="width:280px;">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -436,6 +474,14 @@ function organizationTypeLabel($v){
                 <div style="font-weight:700;"><?= h(courseLabel($r['course_type'])) ?></div>
                 <div class="small"><?= h(levelLabel($r['course_level'])) ?></div>
               </td>
+
+              <td>
+                <span class="status-pill <?= h(statusClass($r['status'] ?? 'pendiente')) ?>">
+                  <?= h($r['status'] ?: 'pendiente') ?>
+                </span>
+              </td>
+
+              <td class="nowrap"><?= h($r['final_grade'] !== null && $r['final_grade'] !== '' ? $r['final_grade'] : '—') ?></td>
 
               <td class="muted"><?= h(sexLabel($r['sex'] ?? '')) ?></td>
 
@@ -461,8 +507,12 @@ function organizationTypeLabel($v){
               <td>
                 <div class="actions">
                   <a class="btnG" href="student_profile.php?id=<?= (int)$r['id'] ?>">Ver</a>
-                  <a class="btnG" href="student_form.php?id=<?= (int)$r['id'] ?>">Editar</a>
                   <a class="btnG" href="student_letter.php?id=<?= (int)$r['id'] ?>" target="_blank">Constancia</a>
+                  <?php if ((int)$r['is_historical'] === 1): ?>
+                    <a class="btnG" href="student_reactivate.php?id=<?= (int)$r['id'] ?>" onclick="return confirm('¿Rehabilitar este estudiante y devolverlo al año 2026?');">
+                      Rehabilitar
+                    </a>
+                  <?php endif; ?>
                 </div>
               </td>
             </tr>
@@ -470,8 +520,8 @@ function organizationTypeLabel($v){
 
           <?php if(!$rows): ?>
             <tr>
-              <td colspan="<?= $me['role']==='admin' ? 10 : 9 ?>" class="muted">
-                No hay estudiantes para mostrar.
+              <td colspan="<?= $me['role']==='admin' ? 12 : 11 ?>" class="muted">
+                No hay estudiantes históricos para mostrar.
               </td>
             </tr>
           <?php endif; ?>
@@ -484,6 +534,8 @@ function organizationTypeLabel($v){
 <script>
 function toggleSidebar() {
   const sidebar = document.getElementById('appSidebar');
+  if (!sidebar) return;
+
   if (window.innerWidth <= 960) {
     sidebar.classList.toggle('open');
   } else {

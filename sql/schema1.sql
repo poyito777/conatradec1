@@ -1,8 +1,8 @@
-CREATE DATABASE IF NOT EXISTS docentes_db
+CREATE DATABASE IF NOT EXISTS docentes1_db
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_general_ci;
 
-USE docentes_db;
+USE docentes1_db;
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -336,8 +336,8 @@ CREATE TABLE student_grades (
 INSERT INTO schools (name) VALUES
 ('Escuela Café Boutique Managua'),
 ('Cra. Natividad Martínez Sanchez'),
-('Cra. Eudosia Abdulia Gomez Chavarria "La Docha"'),
-('Cro. Gabriel Martínez Herrera San Juan de Río Coco-Madriz');
+('Cra. Eudosia Abdulia Gomez Chavarria La Docha'),
+('Cro. Gabriel Martínez Herrera San Juan de Río Coco Madriz');
 
 -- =========================================================
 -- DATOS INICIALES: departments

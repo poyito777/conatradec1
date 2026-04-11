@@ -270,7 +270,7 @@ $groupAverage = $countFinalGrades > 0 ? round($sumFinalGrades / $countFinalGrade
 
     table{
       width:100%;
-      min-width:1250px;
+      min-width:1180px;
       border-collapse:collapse;
     }
 
@@ -360,157 +360,205 @@ $groupAverage = $countFinalGrades > 0 ? round($sumFinalGrades / $countFinalGrade
     }
 
     @page{
-      size: landscape;
-      margin: 10mm;
+      size: letter landscape;
+      margin: 8mm;
     }
 
     @media print{
-      body{
-        background:#fff !important;
-        color:#000 !important;
-      }
+  html, body{
+    background:#fff !important;
+    color:#111 !important;
+    margin:0 !important;
+    padding:0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 
-      .actions,
-      .sidebar,
-      #appSidebar{
-        display:none !important;
-      }
 
-      .container{
-        max-width:none !important;
-        width:100% !important;
-        padding:0 !important;
-        margin:0 !important;
-      }
+  .report-logo{
+  width:40px !important;
+  height:40px !important;
+}
 
-      .panel{
-        box-shadow:none !important;
-        border:none !important;
-        background:#fff !important;
-        color:#000 !important;
-        padding:0 !important;
-      }
+  /* Ocultar solo lo que estorba */
+  .actions,
+  .sidebar,
+  #appSidebar,
+  .topbar,
+  .mobile-topbar,
+  .menu-toggle,
+  .hamburger,
+  .nav-toggle,
+  button.btn2,
+  a.btnG,
+  a.btnS{
+    display:none !important;
+  }
 
-      .hero{
-        margin-bottom:8px !important;
-      }
+  body > aside,
+  body > nav,
+  body > header{
+    display:none !important;
+  }
 
-      .hero h2{
-        font-size:18px !important;
-        margin:0 0 4px !important;
-        color:#000 !important;
-      }
+  .container{
+    max-width:100% !important;
+    width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
 
-      .hero p,
-      .muted,
-      .small,
-      .group-info .k,
-      .summary-card .k{
-        color:#444 !important;
-      }
+  .panel{
+    background:#fff !important;
+    color:#111 !important;
+    border:none !important;
+    box-shadow:none !important;
+    padding:0 !important;
+    border-radius:0 !important;
+  }
 
-      .summary-grid{
-        grid-template-columns:repeat(5,1fr) !important;
-        gap:6px !important;
-        margin-top:8px !important;
-        margin-bottom:8px !important;
-        page-break-inside:avoid;
-      }
+  .hero{
+    display:block !important;
+    margin-bottom:10px !important;
+  }
 
-      .summary-card{
-        padding:8px !important;
-        border:1px solid #bbb !important;
-        background:#fff !important;
-        border-radius:8px !important;
-      }
+  .hero h2{
+    margin:0 0 4px !important;
+    font-size:18px !important;
+    color:#111 !important;
+  }
 
-      .summary-card .v{
-        font-size:18px !important;
-        color:#000 !important;
-      }
+  .hero p,
+  .muted,
+  .small,
+  .group-info .k,
+  .summary-card .k{
+    color:#555 !important;
+  }
 
-      .group-info{
-        grid-template-columns:repeat(4,1fr) !important;
-        gap:6px !important;
-        margin-top:8px !important;
-        margin-bottom:10px !important;
-        padding:8px !important;
-        border:1px solid #bbb !important;
-        background:#fff !important;
-        border-radius:8px !important;
-        page-break-inside:avoid;
-      }
+  .summary-grid{
+    display:grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap:8px !important;
+    margin:10px 0 !important;
+    page-break-inside:avoid;
+  }
 
-      .group-info .v{
-        color:#000 !important;
-        font-size:13px !important;
-        font-weight:700 !important;
-      }
+  .summary-card{
+    background:#fafafa !important;
+    border:1px solid #d9d9d9 !important;
+    border-radius:10px !important;
+    padding:10px !important;
+    box-shadow:none !important;
+  }
 
-      .table-wrap{
-        overflow:visible !important;
-        margin-top:8px !important;
-      }
+  .summary-card .v{
+    font-size:18px !important;
+    color:#111 !important;
+  }
 
-      table{
-        width:100% !important;
-        min-width:0 !important;
-        border-collapse:collapse !important;
-        table-layout:fixed !important;
-        page-break-inside:auto;
-      }
+  .group-info{
+    display:grid !important;
+    grid-template-columns:repeat(4,1fr) !important;
+    gap:8px !important;
+    margin:10px 0 !important;
+    padding:10px !important;
+    background:#fafafa !important;
+    border:1px solid #d9d9d9 !important;
+    border-radius:10px !important;
+    page-break-inside:avoid;
+  }
 
-      thead{
-        display:table-header-group;
-      }
+  .group-info .v{
+    color:#111 !important;
+    font-size:12px !important;
+    font-weight:700 !important;
+  }
 
-      tr{
-        page-break-inside:avoid;
-        page-break-after:auto;
-      }
+  .table-wrap{
+    overflow:visible !important;
+    margin-top:10px !important;
+  }
 
-      th, td{
-        color:#000 !important;
-        background:#fff !important;
-        border:1px solid #bbb !important;
-        padding:6px 7px !important;
-        font-size:11px !important;
-        vertical-align:top !important;
-        word-wrap:break-word;
-      }
+  table{
+    width:100% !important;
+    min-width:0 !important;
+    border-collapse:collapse !important;
+    table-layout:fixed !important;
+    font-size:11px !important;
+  }
 
-      th{
-        font-weight:700 !important;
-      }
+  th, td{
+    border:1px solid #d9d9d9 !important;
+    padding:6px !important;
+    font-size:10px !important;
+    color:#111 !important;
+    background:#fff !important;
+    vertical-align:top !important;
+    word-break:break-word !important;
+    overflow-wrap:break-word !important;
+  }
 
-      .student-name{
-        color:#000 !important;
-        font-weight:700 !important;
-      }
+  th{
+    background:#f3f3f3 !important;
+    color:#333 !important;
+    font-weight:700 !important;
+  }
 
-      .status-pill{
-        min-width:auto !important;
-        padding:4px 8px !important;
-        border:1px solid #999 !important;
-        background:#fff !important;
-        color:#000 !important;
-        font-size:10px !important;
-      }
+  .student-name{
+    color:#111 !important;
+    font-weight:700 !important;
+    font-size:10px !important;
+  }
 
-      .status-pill.ok,
-      .status-pill.bad,
-      .status-pill.pending{
-        color:#000 !important;
-        border-color:#999 !important;
-        background:#fff !important;
-      }
+  .status-pill{
+    display:inline-block !important;
+    min-width:auto !important;
+    padding:3px 8px !important;
+    border-radius:999px !important;
+    font-size:9px !important;
+    font-weight:700 !important;
+    border:1px solid #bdbdbd !important;
+    background:#f7f7f7 !important;
+    color:#222 !important;
+  }
 
-      .empty{
-        color:#000 !important;
-        border:1px solid #bbb !important;
-        background:#fff !important;
-      }
-    }
+  .status-pill.ok{
+    background:#eef8f0 !important;
+    border-color:#b7d7be !important;
+    color:#1f5d2b !important;
+  }
+
+  .status-pill.bad{
+    background:#fdeeee !important;
+    border-color:#e2bcbc !important;
+    color:#8a2f2f !important;
+  }
+
+  .status-pill.pending{
+    background:#fff7e8 !important;
+    border-color:#e7d2a5 !important;
+    color:#8a6a1f !important;
+  }
+
+  .empty{
+    color:#111 !important;
+    border:1px solid #ccc !important;
+    background:#fff !important;
+  }
+}
+
+.hero-left{
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+
+.report-logo{
+  width:52px;
+  height:52px;
+  object-fit:contain;
+}
   </style>
 </head>
 <body>
@@ -518,19 +566,23 @@ $groupAverage = $countFinalGrades > 0 ? round($sumFinalGrades / $countFinalGrade
 
 <main class="container">
   <section class="panel">
-    <div class="hero">
-      <div>
-        <h2 style="margin:0 0 6px;">Reporte consolidado del grupo</h2>
-        <p style="margin:0;color:var(--muted);">
-          Resumen académico y de asistencia del grupo seleccionado.
-        </p>
-      </div>
+   <div class="hero">
+  <div class="hero-left">
+    <img src="/docentes/assets/images/1.png" class="report-logo" alt="CONATRADEC">
 
-      <div class="actions">
-        <a class="btnG" href="groups.php">← Volver</a>
-        <button class="btn2" type="button" onclick="window.print()">Imprimir / Exportar PDF</button>
-      </div>
+    <div>
+      <h2 style="margin:0 0 4px;">Reporte consolidado del grupo</h2>
+      <p style="margin:0;color:var(--muted);">
+        Resumen académico y de asistencia del grupo seleccionado.
+      </p>
     </div>
+  </div>
+
+  <div class="actions">
+    <a class="btnG" href="groups.php">← Volver</a>
+    <button class="btn2" type="button" onclick="window.print()">Imprimir / Exportar PDF</button>
+  </div>
+</div>
 
     <div class="summary-grid">
       <div class="summary-card">
@@ -598,7 +650,7 @@ $groupAverage = $countFinalGrades > 0 ? round($sumFinalGrades / $countFinalGrade
       <table>
         <thead>
           <tr>
-            <th style="width:24%;">Estudiante</th>
+            <th style="width:26%;">Estudiante</th>
             <th style="width:10%;">Asistencia</th>
             <th style="width:7%;">Prueba 1</th>
             <th style="width:7%;">Prueba 2</th>
@@ -606,7 +658,7 @@ $groupAverage = $countFinalGrades > 0 ? round($sumFinalGrades / $countFinalGrade
             <th style="width:7%;">Prueba 4</th>
             <th style="width:7%;">Prueba 5</th>
             <th style="width:9%;">Nota final</th>
-            <th style="width:12%;">Estado</th>
+            <th style="width:10%;">Estado</th>
           </tr>
         </thead>
         <tbody>
@@ -662,6 +714,8 @@ $groupAverage = $countFinalGrades > 0 ? round($sumFinalGrades / $countFinalGrade
 <script>
 function toggleSidebar() {
   const sidebar = document.getElementById('appSidebar');
+  if (!sidebar) return;
+
   if (window.innerWidth <= 960) {
     sidebar.classList.toggle('open');
   } else {

@@ -150,8 +150,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $pdo->beginTransaction();
 
-        // Validación 1:
-        // solo permitir estudiantes visibles/elegibles según filtros actuales
         if (!empty($studentIds)) {
             $placeholders = implode(',', array_fill(0, count($studentIds), '?'));
 
@@ -178,8 +176,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Validación 2:
-        // no permitir que un estudiante esté en otro grupo activo del mismo course_type
         if (!empty($studentIds)) {
             $placeholders = implode(',', array_fill(0, count($studentIds), '?'));
 
@@ -220,7 +216,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Borrar asignaciones anteriores del grupo
         $del = $pdo->prepare("DELETE FROM group_students WHERE group_id = ?");
         $del->execute([$groupId]);
 
@@ -259,13 +254,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // =====================================================
 $sql = "
     SELECT
-        s.*,
-        sc.name AS school_name,
+        s.id,
+        s.full_name,
+        s.student_code,
         MAX(CASE WHEN g2.course_type = 'barismo' AND g2.status = 'activo' THEN 1 ELSE 0 END) AS has_barismo_active,
         MAX(CASE WHEN g2.course_type = 'catacion' AND g2.status = 'activo' THEN 1 ELSE 0 END) AS has_catacion_active
     FROM students s
-    LEFT JOIN schools sc
-        ON sc.id = s.school_id
     LEFT JOIN group_students gs2
         ON gs2.student_id = s.id
     LEFT JOIN groups_table g2
@@ -273,27 +267,8 @@ $sql = "
     $sqlWhere
     GROUP BY
         s.id,
-        s.teacher_id,
         s.full_name,
-        s.sex,
-        s.education_level,
-        s.profession,
-        s.nationality,
-        s.student_code,
-        s.school_id,
-        s.course_type,
-        s.course_level,
-        s.phone,
-        s.cedula,
-        s.department_id,
-        s.municipality_id,
-        s.community,
-        s.status,
-        s.final_grade,
-        s.enrolled_at,
-        s.created_at,
-        s.updated_at,
-        sc.name
+        s.student_code
     ORDER BY s.full_name ASC
 ";
 $stmt = $pdo->prepare($sql);
@@ -305,11 +280,9 @@ $stmt = $pdo->prepare("
     SELECT
         s.id,
         s.full_name,
-        s.student_code,
-        sc.name AS school_name
+        s.student_code
     FROM group_students gs
     JOIN students s ON s.id = gs.student_id
-    LEFT JOIN schools sc ON sc.id = s.school_id
     WHERE gs.group_id = ?
     ORDER BY s.full_name ASC
 ");
@@ -440,6 +413,9 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
       font-weight:800;
       cursor:pointer;
       text-decoration:none;
+      line-height:1.2;
+      white-space:nowrap;
+      min-height:42px;
     }
 
     .mini-btn.gray{
@@ -464,7 +440,7 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
 
     .layout-2col{
       display:grid;
-      grid-template-columns: 1.4fr .9fr;
+      grid-template-columns:minmax(0, 1.45fr) minmax(320px, .85fr);
       gap:16px;
       align-items:start;
       margin-top:12px;
@@ -475,6 +451,7 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
       border-radius:16px;
       background:rgba(255,255,255,.04);
       overflow:hidden;
+      min-width:0;
     }
 
     .box-head{
@@ -501,12 +478,14 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
 
     .table-wrap{
       overflow-x:auto;
+      width:100%;
     }
 
     table{
       width:100%;
       border-collapse:collapse;
-      min-width:920px;
+      min-width:740px;
+      table-layout:fixed;
     }
 
     th,td{
@@ -515,6 +494,8 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
       text-align:left;
       vertical-align:middle;
       font-size:14px;
+      overflow-wrap:anywhere;
+      word-break:break-word;
     }
 
     th{
@@ -523,17 +504,28 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
       white-space:nowrap;
     }
 
+    .col-name{width:39%;}
+    .col-code{width:23%;}
+    .col-status{width:18%;}
+    .col-action{width:20%;}
+
     .code{
       font-weight:800;
       color:#e5e7eb;
+      white-space:nowrap;
     }
 
     .chip{
-      display:inline-block;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
       padding:6px 10px;
       border-radius:999px;
       border:1px solid var(--line);
       font-size:12px;
+      line-height:1.2;
+      max-width:100%;
+      text-align:center;
     }
 
     .status-p{
@@ -552,6 +544,19 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
       color:#fca5a5;
       border-color:rgba(239,68,68,.35);
       background:rgba(239,68,68,.10);
+    }
+
+    .action-cell{
+      text-align:center;
+    }
+
+    .action-cell .mini-btn,
+    .action-cell .mini-btn.disabled{
+      min-width:112px;
+      width:100%;
+      max-width:130px;
+      justify-content:center;
+      margin:0 auto;
     }
 
     .actions{
@@ -609,22 +614,75 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
       display:none;
     }
 
-    @media(max-width:1080px){
+    @media (max-width: 1200px){
+      .container{
+        padding:20px;
+      }
+
       .layout-2col{
         grid-template-columns:1fr;
       }
     }
 
-    @media(max-width:960px){
+    @media (max-width: 960px){
       .group-meta{
         grid-template-columns:1fr 1fr;
       }
+
+      .toolbar{
+        flex-direction:column;
+        align-items:stretch;
+      }
+
+      .toolbar input[type="text"]{
+        min-width:0;
+        width:100%;
+      }
+
+      table{
+        min-width:700px;
+      }
+
+      .col-name{width:38%;}
+      .col-code{width:22%;}
+      .col-status{width:18%;}
+      .col-action{width:22%;}
     }
 
-    @media(max-width:640px){
+    @media (max-width: 640px){
+      .container{
+        padding:14px;
+      }
+
+      .panel{
+        padding:14px;
+      }
+
       .group-meta{
         grid-template-columns:1fr;
       }
+
+      .box-head{
+        padding:12px;
+      }
+
+      .save-row{
+        padding:12px;
+      }
+
+      table{
+        min-width:660px;
+      }
+
+      th, td{
+        padding:10px;
+        font-size:13px;
+      }
+
+      .col-name{width:36%;}
+      .col-code{width:24%;}
+      .col-status{width:18%;}
+      .col-action{width:22%;}
     }
   </style>
 </head>
@@ -701,11 +759,10 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
             <table>
               <thead>
                 <tr>
-                  <th>Nombre</th>
-                  <th style="width:140px;">Código</th>
-                  <th>Escuela</th>
-                  <th style="width:190px;">Disponibilidad</th>
-                  <th style="width:150px;">Acción</th>
+                  <th class="col-name">Nombre</th>
+                  <th class="col-code">Código</th>
+                  <th class="col-status">Disponibilidad</th>
+                  <th class="col-action">Acción</th>
                 </tr>
               </thead>
               <tbody>
@@ -719,15 +776,14 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
                     <tr>
                       <td><?= h($s['full_name']) ?></td>
                       <td class="code"><?= h($s['student_code'] ?: '—') ?></td>
-                      <td><?= h($s['school_name'] ?: '—') ?></td>
                       <td>
                         <span class="chip <?= h($availabilityCss) ?>">
                           <?= h($availabilityText) ?>
                         </span>
                       </td>
-                      <td>
+                      <td class="action-cell">
                         <?php if ($isFinalized): ?>
-                          <span class="mini-btn disabled">Grupo finalizado</span>
+                          <span class="mini-btn disabled">Finalizado</span>
                         <?php else: ?>
                           <button
                             type="button"
@@ -735,8 +791,7 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
                             onclick='addStudent(
                               <?= (int)$s['id'] ?>,
                               <?= json_encode((string)$s['full_name'], JSON_UNESCAPED_UNICODE) ?>,
-                              <?= json_encode((string)($s['student_code'] ?: '—'), JSON_UNESCAPED_UNICODE) ?>,
-                              <?= json_encode((string)($s['school_name'] ?: '—'), JSON_UNESCAPED_UNICODE) ?>
+                              <?= json_encode((string)($s['student_code'] ?: '—'), JSON_UNESCAPED_UNICODE) ?>
                             )'
                           >
                             <?= $alreadyAssigned ? 'Inscrito' : 'Inscribir' ?>
@@ -747,7 +802,7 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
                   <?php endforeach; ?>
                 <?php else: ?>
                   <tr>
-                    <td colspan="5" class="empty">
+                    <td colspan="4" class="empty">
                       No se encontraron estudiantes con esa búsqueda.
                     </td>
                   </tr>
@@ -786,6 +841,17 @@ $saved = isset($_GET['saved']) && $_GET['saved'] == '1';
 </main>
 
 <script>
+function toggleSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  if (!sidebar) return;
+
+  if (window.innerWidth <= 960) {
+    sidebar.classList.toggle('open');
+  } else {
+    sidebar.classList.toggle('collapsed');
+  }
+}
+
 const previewList = document.getElementById('previewList');
 const hiddenTargets = document.getElementById('hiddenTargets');
 
@@ -815,7 +881,7 @@ function renderPreview() {
     item.innerHTML = `
       <div>
         <div class="preview-name">${escapeHtml(student.name)}</div>
-        <div class="preview-meta">${escapeHtml(student.code)} • ${escapeHtml(student.school)}</div>
+        <div class="preview-meta">${escapeHtml(student.code)}</div>
       </div>
       <div>
         <button type="button" class="mini-btn red" onclick="removeStudent(${id})">Quitar</button>
@@ -831,14 +897,13 @@ function renderPreview() {
   }
 }
 
-function addStudent(id, name, code, school) {
+function addStudent(id, name, code) {
   id = parseInt(id, 10);
   if (!id || selectedStudents.has(id)) return;
 
   selectedStudents.set(id, {
     name,
-    code,
-    school
+    code
   });
 
   renderPreview();
@@ -858,12 +923,29 @@ function clearPreview() {
 <?php foreach ($assignedStudents as $a): ?>
 selectedStudents.set(<?= (int)$a['id'] ?>, {
   name: <?= json_encode((string)$a['full_name'], JSON_UNESCAPED_UNICODE) ?>,
-  code: <?= json_encode((string)($a['student_code'] ?: '—'), JSON_UNESCAPED_UNICODE) ?>,
-  school: <?= json_encode((string)($a['school_name'] ?: '—'), JSON_UNESCAPED_UNICODE) ?>
+  code: <?= json_encode((string)($a['student_code'] ?: '—'), JSON_UNESCAPED_UNICODE) ?>
 });
 <?php endforeach; ?>
 
 renderPreview();
+
+document.addEventListener('DOMContentLoaded', function () {
+  const sidebar = document.getElementById('appSidebar');
+  if (!sidebar) return;
+
+  if (window.innerWidth > 960) {
+    sidebar.classList.remove('open');
+  }
+});
+
+window.addEventListener('resize', function () {
+  const sidebar = document.getElementById('appSidebar');
+  if (!sidebar) return;
+
+  if (window.innerWidth > 960) {
+    sidebar.classList.remove('open');
+  }
+});
 </script>
 </body>
 </html>

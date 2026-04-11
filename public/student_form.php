@@ -50,6 +50,17 @@ foreach ($municipalityRows as $m) {
     'id' => (int)$m['id'],
     'name' => $m['name']
   ];
+
+  $characterizationOptions = [
+  'catador' => 'Catador',
+  'barista' => 'Barista',
+  'productor' => 'Productor',
+  'tostador' => 'Tostador',
+  'tecnico' => 'Técnico',
+  'comerciante' => 'Comerciante',
+  'independiente' => 'Independiente',
+  'propietario_cafeteria' => 'Propietario de cafetería'
+];
 }
 
 // =====================================================
@@ -239,6 +250,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $error = "Tipo de organización inválido.";
   } elseif ($trademark_registration !== '' && !in_array($trademark_registration, ['si','no'], true)) {
     $error = "Registro de marca inválido.";
+    } elseif ($characterization !== '' && !array_key_exists($characterization, $characterizationOptions)) {
+  $error = "Caracterización inválida.";
   } elseif ($number_of_members !== null && $number_of_members < 0) {
     $error = "El número de socios no puede ser negativo.";
   } else {
@@ -714,9 +727,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="field col6">
-          <label for="characterization">Caracterización</label>
-          <input id="characterization" name="characterization" value="<?= h($row['characterization'] ?? '') ?>" placeholder="Ej: productor, tostador, barista, catador...">
-        </div>
+  <label for="characterization">Caracterización</label>
+  <select name="characterization" id="characterization">
+    <option value="">Seleccionar</option>
+    <?php foreach ($characterizationOptions as $value => $label): ?>
+      <option value="<?= h($value) ?>" <?= ($row['characterization'] ?? '') === $value ? 'selected' : '' ?>>
+        <?= h($label) ?>
+      </option>
+    <?php endforeach; ?>
+  </select>
+</div>
 
         <div class="field col4">
           <label for="trademark_registration">Registro de marca</label>

@@ -1,6 +1,6 @@
 <?php
 $host = "127.0.0.1";
-$db   = "docentes1_db";
+$db   = "docentes_db";
 $user = "root";
 $pass = "";
 $charset = "utf8mb4";
