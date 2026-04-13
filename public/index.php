@@ -58,6 +58,7 @@ function logActivity(PDO $pdo, ?int $userId, string $action, string $description
 }
 
 $error = "";
+$expiredMessage = isset($_GET['expired']) ? "Tu sesión expiró por inactividad. Iniciá sesión de nuevo." : "";
 $ip = getClientIp();
 
 $maxAttempts = 5;
@@ -121,6 +122,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'role' => $user['role'],
                     'must_change_password' => (int)($user['must_change_password'] ?? 0),
                 ];
+
+                // Registrar última actividad para control de inactividad
+                $_SESSION['LAST_ACTIVITY'] = time();
 
                 logActivity(
                     $pdo,
@@ -207,6 +211,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       <h2 style="margin:12px 0 6px;">Iniciar sesión</h2>
       <p>Ingresá con tu correo y contraseña.</p>
+
+      <?php if ($expiredMessage !== ''): ?>
+        <div class="alert"><?= h($expiredMessage) ?></div>
+      <?php endif; ?>
 
       <?php if (!empty($error)): ?>
         <div class="alert"><?= h($error) ?></div>
